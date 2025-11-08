@@ -3,7 +3,7 @@ version: '3.8'
 services:
   xrootd-mcp-server:
     build: .
-    image: ghcr.io/wdconinc/xrootd-mcp-server:latest
+    image: ghcr.io/eic/xrootd-mcp-server:latest
     container_name: xrootd-mcp-server
     stdin_open: true
     tty: true

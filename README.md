@@ -2,6 +2,8 @@
 
 A Model Context Protocol (MCP) server that provides access to XRootD file systems. This server allows LLMs to interact with XRootD servers to list directories, read file metadata, access file contents, and more.
 
+📚 **[View Full Documentation](https://eic.github.io/xrootd-mcp-server/)**
+
 ## Features
 
 - **List directories**: Browse XRootD file system hierarchy
@@ -15,12 +17,12 @@ A Model Context Protocol (MCP) server that provides access to XRootD file system
 ### Using Docker (Recommended)
 
 ```bash
-docker pull ghcr.io/wdconinc/xrootd-mcp-server:latest
+docker pull ghcr.io/eic/xrootd-mcp-server:latest
 
 docker run -i --rm \
   -e XROOTD_SERVER="root://dtn-eic.jlab.org" \
   -e XROOTD_BASE_DIR="/volatile/eic/EPIC" \
-  ghcr.io/wdconinc/xrootd-mcp-server:latest
+  ghcr.io/eic/xrootd-mcp-server:latest
 ```
 
 See [Docker Usage Guide](docs/DOCKER.md) for detailed instructions.

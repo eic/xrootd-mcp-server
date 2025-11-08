@@ -71,7 +71,7 @@ The workflows will automatically:
 
 #### 4. Review and Edit Release
 
-1. Go to [Releases](https://github.com/wdconinc/xrootd-mcp-server/releases)
+1. Go to [Releases](https://github.com/eic/xrootd-mcp-server/releases)
 2. Find your release
 3. Edit if needed:
    - Improve changelog
@@ -108,24 +108,24 @@ Pre-release versions (alpha, beta, rc) **do NOT** update `latest`:
 
 ```bash
 # Pull the image
-docker pull ghcr.io/wdconinc/xrootd-mcp-server:1.0.0
+docker pull ghcr.io/eic/xrootd-mcp-server:1.0.0
 
 # Verify version
-docker run --rm ghcr.io/wdconinc/xrootd-mcp-server:1.0.0 node --version
+docker run --rm ghcr.io/eic/xrootd-mcp-server:1.0.0 node --version
 
 # Test XRootD client
-docker run --rm --entrypoint xrdfs ghcr.io/wdconinc/xrootd-mcp-server:1.0.0 --version
+docker run --rm --entrypoint xrdfs ghcr.io/eic/xrootd-mcp-server:1.0.0 --version
 
 # Test functionality
 docker run -i --rm \
   -e XROOTD_SERVER="root://dtn-eic.jlab.org" \
   -e XROOTD_BASE_DIR="/volatile/eic/EPIC" \
-  ghcr.io/wdconinc/xrootd-mcp-server:1.0.0
+  ghcr.io/eic/xrootd-mcp-server:1.0.0
 ```
 
 ### Check GitHub Actions
 
-1. Go to [Actions](https://github.com/wdconinc/xrootd-mcp-server/actions)
+1. Go to [Actions](https://github.com/eic/xrootd-mcp-server/actions)
 2. Verify all workflows succeeded:
    - ✅ Release
    - ✅ Build and Publish Docker Image
@@ -133,7 +133,7 @@ docker run -i --rm \
 
 ### Check GitHub Packages
 
-1. Go to [Packages](https://github.com/wdconinc/xrootd-mcp-server/pkgs/container/xrootd-mcp-server)
+1. Go to [Packages](https://github.com/eic/xrootd-mcp-server/pkgs/container/xrootd-mcp-server)
 2. Verify tags exist:
    - Version tag (e.g., `1.0.0`)
    - Major.minor tag (e.g., `1.0`)
@@ -158,7 +158,7 @@ git push origin v1.0.0
 
 ### Docker Build Failed
 
-1. Check [Docker workflow](https://github.com/wdconinc/xrootd-mcp-server/actions/workflows/docker.yml)
+1. Check [Docker workflow](https://github.com/eic/xrootd-mcp-server/actions/workflows/docker.yml)
 2. Review build logs
 3. If needed, manually trigger:
    - Go to Actions → Build and Publish Docker Image
@@ -199,26 +199,26 @@ gh release create v1.0.0 \
 
 ```bash
 # Build
-docker build -t ghcr.io/wdconinc/xrootd-mcp-server:1.0.0 .
+docker build -t ghcr.io/eic/xrootd-mcp-server:1.0.0 .
 
 # Login
 echo $GITHUB_TOKEN | docker login ghcr.io -u USERNAME --password-stdin
 
 # Push
-docker push ghcr.io/wdconinc/xrootd-mcp-server:1.0.0
+docker push ghcr.io/eic/xrootd-mcp-server:1.0.0
 
 # Tag and push additional tags
-docker tag ghcr.io/wdconinc/xrootd-mcp-server:1.0.0 \
-  ghcr.io/wdconinc/xrootd-mcp-server:1.0
-docker push ghcr.io/wdconinc/xrootd-mcp-server:1.0
+docker tag ghcr.io/eic/xrootd-mcp-server:1.0.0 \
+  ghcr.io/eic/xrootd-mcp-server:1.0
+docker push ghcr.io/eic/xrootd-mcp-server:1.0
 
-docker tag ghcr.io/wdconinc/xrootd-mcp-server:1.0.0 \
-  ghcr.io/wdconinc/xrootd-mcp-server:1
-docker push ghcr.io/wdconinc/xrootd-mcp-server:1
+docker tag ghcr.io/eic/xrootd-mcp-server:1.0.0 \
+  ghcr.io/eic/xrootd-mcp-server:1
+docker push ghcr.io/eic/xrootd-mcp-server:1
 
-docker tag ghcr.io/wdconinc/xrootd-mcp-server:1.0.0 \
-  ghcr.io/wdconinc/xrootd-mcp-server:latest
-docker push ghcr.io/wdconinc/xrootd-mcp-server:latest
+docker tag ghcr.io/eic/xrootd-mcp-server:1.0.0 \
+  ghcr.io/eic/xrootd-mcp-server:latest
+docker push ghcr.io/eic/xrootd-mcp-server:latest
 ```
 
 ## Post-Release
@@ -254,7 +254,7 @@ After release, monitor:
 
 ## Version History
 
-See [Releases](https://github.com/wdconinc/xrootd-mcp-server/releases) for full history.
+See [Releases](https://github.com/eic/xrootd-mcp-server/releases) for full history.
 
 ### Example Versions
 

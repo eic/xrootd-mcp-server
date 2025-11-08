@@ -10,7 +10,7 @@ This guide covers running the XRootD MCP Server using Docker.
 docker run -i --rm \
   -e XROOTD_SERVER="root://dtn-eic.jlab.org" \
   -e XROOTD_BASE_DIR="/volatile/eic/EPIC" \
-  ghcr.io/wdconinc/xrootd-mcp-server:latest
+  ghcr.io/eic/xrootd-mcp-server:latest
 ```
 
 ### With Claude Desktop
@@ -29,7 +29,7 @@ Update your Claude Desktop configuration (`~/Library/Application Support/Claude/
         "-e", "XROOTD_SERVER=root://dtn-eic.jlab.org",
         "-e", "XROOTD_BASE_DIR=/volatile/eic/EPIC",
         "-e", "XROOTD_CACHE_TTL=60",
-        "ghcr.io/wdconinc/xrootd-mcp-server:latest"
+        "ghcr.io/eic/xrootd-mcp-server:latest"
       ]
     }
   }
@@ -74,7 +74,7 @@ docker run -i --rm \
   -e XROOTD_SERVER="root://dtn-eic.jlab.org" \
   -v ~/.globus:/home/xrootd/.globus:ro \
   -v ~/.x509:/home/xrootd/.x509:ro \
-  ghcr.io/wdconinc/xrootd-mcp-server:latest
+  ghcr.io/eic/xrootd-mcp-server:latest
 ```
 
 ## Building Locally
@@ -111,16 +111,16 @@ Available on GitHub Container Registry:
 
 ```bash
 # Latest stable
-docker pull ghcr.io/wdconinc/xrootd-mcp-server:latest
+docker pull ghcr.io/eic/xrootd-mcp-server:latest
 
 # Specific version
-docker pull ghcr.io/wdconinc/xrootd-mcp-server:1.0.0
+docker pull ghcr.io/eic/xrootd-mcp-server:1.0.0
 
 # Latest v1.x
-docker pull ghcr.io/wdconinc/xrootd-mcp-server:1
+docker pull ghcr.io/eic/xrootd-mcp-server:1
 
 # Development edge
-docker pull ghcr.io/wdconinc/xrootd-mcp-server:edge
+docker pull ghcr.io/eic/xrootd-mcp-server:edge
 ```
 
 ## Container Details
@@ -157,7 +157,7 @@ docker ps  # Shows health status
 
 ```bash
 docker run -it --rm --entrypoint /bin/sh \
-  ghcr.io/wdconinc/xrootd-mcp-server:latest
+  ghcr.io/eic/xrootd-mcp-server:latest
 ```
 
 ### Test XRootD Connection
@@ -166,7 +166,7 @@ docker run -it --rm --entrypoint /bin/sh \
 docker run -it --rm \
   -e XROOTD_SERVER="root://dtn-eic.jlab.org" \
   --entrypoint xrdfs \
-  ghcr.io/wdconinc/xrootd-mcp-server:latest \
+  ghcr.io/eic/xrootd-mcp-server:latest \
   root://dtn-eic.jlab.org ls /volatile/eic/EPIC
 ```
 
@@ -175,7 +175,7 @@ docker run -it --rm \
 ```bash
 docker run -i --rm \
   -e XROOTD_SERVER="root://dtn-eic.jlab.org" \
-  ghcr.io/wdconinc/xrootd-mcp-server:latest \
+  ghcr.io/eic/xrootd-mcp-server:latest \
   node --version
 ```
 
@@ -200,7 +200,7 @@ spec:
     spec:
       containers:
       - name: xrootd-mcp-server
-        image: ghcr.io/wdconinc/xrootd-mcp-server:latest
+        image: ghcr.io/eic/xrootd-mcp-server:latest
         stdin: true
         tty: true
         env:
@@ -235,10 +235,10 @@ MCP servers use stdin/stdout, so they exit when stdin closes:
 
 ```bash
 # Bad: exits immediately
-docker run ghcr.io/wdconinc/xrootd-mcp-server:latest
+docker run ghcr.io/eic/xrootd-mcp-server:latest
 
 # Good: keeps stdin open
-docker run -i ghcr.io/wdconinc/xrootd-mcp-server:latest
+docker run -i ghcr.io/eic/xrootd-mcp-server:latest
 ```
 
 ### Permission Denied
@@ -259,7 +259,7 @@ Test connection manually:
 docker run -it --rm \
   -e XROOTD_SERVER="root://your-server" \
   --entrypoint xrdfs \
-  ghcr.io/wdconinc/xrootd-mcp-server:latest \
+  ghcr.io/eic/xrootd-mcp-server:latest \
   root://your-server ls /
 ```
 
@@ -272,7 +272,7 @@ docker run -i --rm \
   -e XROOTD_SERVER="root://dtn-eic.jlab.org" \
   -e XROOTD_CACHE_ENABLED=true \
   --entrypoint env \
-  ghcr.io/wdconinc/xrootd-mcp-server:latest
+  ghcr.io/eic/xrootd-mcp-server:latest
 ```
 
 ## Performance Tips
@@ -295,7 +295,7 @@ docker run -i --rm \
 
 Images are published to GitHub Container Registry (ghcr.io):
 
-- **Repository**: `ghcr.io/wdconinc/xrootd-mcp-server`
+- **Repository**: `ghcr.io/eic/xrootd-mcp-server`
 - **Public**: Yes (requires GitHub login for private repos)
 - **Architectures**: linux/amd64, linux/arm64
 - **Automatic builds**: On every push to main and on releases
