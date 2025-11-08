@@ -12,6 +12,21 @@ A Model Context Protocol (MCP) server that provides access to XRootD file system
 
 ## Installation
 
+### Using Docker (Recommended)
+
+```bash
+docker pull ghcr.io/wdconinc/xrootd-mcp-server:latest
+
+docker run -i --rm \
+  -e XROOTD_SERVER="root://dtn-eic.jlab.org" \
+  -e XROOTD_BASE_DIR="/volatile/eic/EPIC" \
+  ghcr.io/wdconinc/xrootd-mcp-server:latest
+```
+
+See [Docker Usage Guide](docs/DOCKER.md) for detailed instructions.
+
+### From Source
+
 ```bash
 npm install
 npm run build
