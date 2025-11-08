@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "xrootd": {
+      "command": "node",
+      "args": [
+        "/path/to/xrootd-mcp-server/build/index.js"
+      ],
+      "env": {
+        "XROOTD_SERVER": "root://dtn-eic.jlab.org",
+        "XROOTD_BASE_DIR": "/volatile/eic/EPIC"
+      }
+    }
+  }
+}
