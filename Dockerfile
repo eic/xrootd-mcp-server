@@ -50,7 +50,8 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 ENV NODE_ENV=production \
     XROOTD_BASE_DIR=/ \
     XROOTD_CACHE_ENABLED=true \
-    XROOTD_CACHE_TTL=60
+    XROOTD_CACHE_TTL=60 \
+    XROOTD_CACHE_MAX_SIZE=1000
 
 # Labels
 LABEL org.opencontainers.image.title="XRootD MCP Server" \

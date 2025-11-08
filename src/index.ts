@@ -13,13 +13,14 @@ const XROOTD_SERVER = process.env.XROOTD_SERVER;
 const XROOTD_BASE_DIR = process.env.XROOTD_BASE_DIR || '/';
 const XROOTD_CACHE_ENABLED = process.env.XROOTD_CACHE_ENABLED !== 'false';
 const XROOTD_CACHE_TTL = parseInt(process.env.XROOTD_CACHE_TTL || '60', 10);
+const XROOTD_CACHE_MAX_SIZE = parseInt(process.env.XROOTD_CACHE_MAX_SIZE || '1000', 10);
 
 if (!XROOTD_SERVER) {
   console.error('Error: XROOTD_SERVER environment variable is required');
   process.exit(1);
 }
 
-const xrootdClient = new XRootDClient(XROOTD_SERVER, XROOTD_BASE_DIR, XROOTD_CACHE_ENABLED, XROOTD_CACHE_TTL);
+const xrootdClient = new XRootDClient(XROOTD_SERVER, XROOTD_BASE_DIR, XROOTD_CACHE_ENABLED, XROOTD_CACHE_TTL, XROOTD_CACHE_MAX_SIZE);
 
 const server = new Server(
   {

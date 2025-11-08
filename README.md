@@ -56,8 +56,9 @@ When `XROOTD_BASE_DIR` is set:
 Directory listing results are cached for improved performance:
 
 ```bash
-export XROOTD_CACHE_ENABLED=true    # default: true
-export XROOTD_CACHE_TTL=60          # minutes, default: 60
+export XROOTD_CACHE_ENABLED=true      # default: true
+export XROOTD_CACHE_TTL=60            # minutes, default: 60
+export XROOTD_CACHE_MAX_SIZE=1000     # max entries, default: 1000
 ```
 
 The cache uses a time-based expiration strategy (TTL):

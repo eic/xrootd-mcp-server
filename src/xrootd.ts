@@ -63,10 +63,10 @@ export class XRootDClient {
   private baseDirectory: string;
   private cache: DirectoryCache;
 
-  constructor(serverUrl: string, baseDirectory: string = '/', enableCache: boolean = true, cacheTTLMinutes: number = 60) {
+  constructor(serverUrl: string, baseDirectory: string = '/', enableCache: boolean = true, cacheTTLMinutes: number = 60, cacheMaxSize: number = 1000) {
     this.serverUrl = serverUrl.replace(/\/$/, '');
     this.baseDirectory = baseDirectory.replace(/\/$/, '') || '/';
-    this.cache = new DirectoryCache(cacheTTLMinutes);
+    this.cache = new DirectoryCache(cacheTTLMinutes, cacheMaxSize);
     
     if (enableCache) {
       // Run cleanup every 15 minutes

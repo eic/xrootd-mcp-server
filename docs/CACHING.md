@@ -28,10 +28,13 @@ Since directory modification times (`mtime`) don't reliably indicate content cha
 
 ```bash
 # Enable/disable caching
-XROOTD_CACHE_ENABLED=true    # default: true
+XROOTD_CACHE_ENABLED=true      # default: true
 
 # Cache time-to-live in minutes
-XROOTD_CACHE_TTL=60          # default: 60 minutes
+XROOTD_CACHE_TTL=60            # default: 60 minutes
+
+# Maximum number of cached entries (LRU eviction when exceeded)
+XROOTD_CACHE_MAX_SIZE=1000     # default: 1000 entries
 ```
 
 ### Behavior
@@ -110,6 +113,12 @@ XROOTD_CACHE_TTL=5
 
 # Longer TTL for stable production data
 XROOTD_CACHE_TTL=120
+
+# Increase cache size for systems with many directories
+XROOTD_CACHE_MAX_SIZE=5000
+
+# Decrease cache size for memory-constrained environments
+XROOTD_CACHE_MAX_SIZE=100
 ```
 
 Monitor cache effectiveness through server logs which show cache status on startup.

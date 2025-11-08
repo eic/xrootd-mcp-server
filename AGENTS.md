@@ -266,6 +266,7 @@ XROOTD_SERVER="root://dtn-eic.jlab.org"  # Required
 XROOTD_BASE_DIR="/volatile/eic/EPIC"     # Optional, default: /
 XROOTD_CACHE_ENABLED="true"              # Optional, default: true
 XROOTD_CACHE_TTL="60"                    # Optional, minutes, default: 60
+XROOTD_CACHE_MAX_SIZE="1000"             # Optional, max entries, default: 1000
 ```
 
 ### MCP Client Configuration

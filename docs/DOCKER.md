@@ -47,6 +47,7 @@ Update your Claude Desktop configuration (`~/Library/Application Support/Claude/
 - `XROOTD_BASE_DIR` - Base directory for access control (default: `/`)
 - `XROOTD_CACHE_ENABLED` - Enable caching (default: `true`)
 - `XROOTD_CACHE_TTL` - Cache TTL in minutes (default: `60`)
+- `XROOTD_CACHE_MAX_SIZE` - Maximum cached entries (default: `1000`)
 
 ## Using Docker Compose
 

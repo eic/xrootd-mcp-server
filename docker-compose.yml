@@ -17,6 +17,7 @@ services:
       # Optional: Caching configuration
       XROOTD_CACHE_ENABLED: ${XROOTD_CACHE_ENABLED:-true}
       XROOTD_CACHE_TTL: ${XROOTD_CACHE_TTL:-60}
+      XROOTD_CACHE_MAX_SIZE: ${XROOTD_CACHE_MAX_SIZE:-1000}
       
       # Node.js environment
       NODE_ENV: production
