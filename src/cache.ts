@@ -67,7 +67,7 @@ export class DirectoryCache {
     let oldestKey: string | null = null;
     let oldestTime = Date.now();
 
-    for (const [key, entry] of this.cache.entries()) {
+    for (const [key, entry] of Array.from(this.cache.entries())) {
       const time = entry.cachedAt.getTime();
       if (time < oldestTime) {
         oldestTime = time;
@@ -83,7 +83,7 @@ export class DirectoryCache {
     const now = Date.now();
     const keysToDelete: string[] = [];
 
-    for (const [key, entry] of this.cache.entries()) {
+    for (const [key, entry] of Array.from(this.cache.entries())) {
       const age = now - entry.cachedAt.getTime();
       if (age > this.cacheTTL) {
         keysToDelete.push(key);
