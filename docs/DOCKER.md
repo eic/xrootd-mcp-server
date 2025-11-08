@@ -127,19 +127,19 @@ docker pull ghcr.io/wdconinc/xrootd-mcp-server:edge
 
 ### Base Image
 
-- `node:20-alpine` - Small, secure Node.js runtime
-- Alpine Linux with XRootD client tools
+- `node:20-slim` - Debian-based Node.js runtime
+- Debian with XRootD client tools from official repositories
 
 ### Security
 
 - Runs as non-root user (`xrootd:xrootd`)
 - UID/GID: 1000
-- Minimal attack surface (Alpine)
+- Minimal attack surface (Debian slim)
 - No unnecessary packages
 
 ### Size
 
-- Approximately 150-200MB
+- Approximately 250-300MB (slim base + XRootD)
 - Optimized multi-stage build
 - Production dependencies only
 

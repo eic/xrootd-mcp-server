@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # Build stage
-FROM node:20-alpine AS builder
+FROM node:20-slim AS builder
 
 WORKDIR /app
 
@@ -18,12 +18,14 @@ COPY src/ ./src/
 RUN npm run build
 
 # Production stage
-FROM node:20-alpine
+FROM node:20-slim
 
 # Install XRootD client tools
-RUN apk add --no-cache \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
     xrootd-client \
-    ca-certificates
+    ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -35,12 +37,10 @@ RUN npm ci --production --ignore-scripts && \
 # Copy built application from builder
 COPY --from=builder /app/build ./build
 
-# Create non-root user
-RUN addgroup -g 1000 xrootd && \
-    adduser -D -u 1000 -G xrootd xrootd && \
-    chown -R xrootd:xrootd /app
+# Use existing node user (UID 1000)
+RUN chown -R node:node /app
 
-USER xrootd
+USER node
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
