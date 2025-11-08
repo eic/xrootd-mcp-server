@@ -46,6 +46,13 @@ jobs:
         run: |
           mkdir -p _site
           
+          # Extract repository name for GitHub Pages base path
+          REPO_NAME="${{ github.event.repository.name }}"
+          BASE_PATH="/$REPO_NAME"
+          
+          echo "Repository: $REPO_NAME"
+          echo "Base path: $BASE_PATH"
+          
           # Copy documentation files
           cp -r docs _site/
           mkdir -p _site/examples
@@ -55,8 +62,8 @@ jobs:
           cp README.md _site/
           cp QUICKSTART.md _site/
           
-          # Create index.html
-          cat > _site/index.html << 'EOF'
+          # Create index.html with BASE_PATH substitution
+          cat > _site/index.html << EOF
           <!DOCTYPE html>
           <html lang="en">
           <head>
@@ -200,35 +207,35 @@ jobs:
                           <span class="badge">Getting Started</span>
                           <h2>README</h2>
                           <p>Project overview, features, and tool reference</p>
-                          <a href="README.html">Read →</a>
+                          <a href="$BASE_PATH/README.html">Read →</a>
                       </div>
                       
                       <div class="doc-card">
                           <span class="badge">Getting Started</span>
                           <h2>Quick Start</h2>
                           <p>Installation guide and basic setup instructions</p>
-                          <a href="QUICKSTART.html">Read →</a>
+                          <a href="$BASE_PATH/QUICKSTART.html">Read →</a>
                       </div>
                       
                       <div class="doc-card">
                           <span class="badge">Usage</span>
                           <h2>Usage Guide</h2>
                           <p>Comprehensive tool usage examples and patterns</p>
-                          <a href="examples/USAGE.html">Read →</a>
+                          <a href="$BASE_PATH/examples/USAGE.html">Read →</a>
                       </div>
                       
                       <div class="doc-card">
                           <span class="badge">Advanced</span>
                           <h2>Advanced Features</h2>
                           <p>Deep dive into search, analysis, and discovery tools</p>
-                          <a href="docs/ADVANCED_FEATURES.html">Read →</a>
+                          <a href="$BASE_PATH/docs/ADVANCED_FEATURES.html">Read →</a>
                       </div>
                       
                       <div class="doc-card">
                           <span class="badge">Technical</span>
                           <h2>Caching Strategy</h2>
                           <p>Implementation details and performance optimization</p>
-                          <a href="docs/CACHING.html">Read →</a>
+                          <a href="$BASE_PATH/docs/CACHING.html">Read →</a>
                       </div>
                   </div>
               </main>
@@ -243,7 +250,7 @@ jobs:
           # Convert markdown to HTML
           for md in $(find _site -name "*.md"); do
               html="${md%.md}.html"
-              cat > "$html" << 'HTMLEOF'
+              cat > "$html" << HTMLEOF
           <!DOCTYPE html>
           <html lang="en" data-color-mode="auto" data-light-theme="light" data-dark-theme="dark">
           <head>
@@ -304,11 +311,11 @@ jobs:
                   <div class="header-content">
                       <h1>XRootD MCP Server</h1>
                       <div class="nav">
-                          <a href="/">Home</a>
-                          <a href="/README.html">README</a>
-                          <a href="/QUICKSTART.html">Quick Start</a>
-                          <a href="/docs/ADVANCED_FEATURES.html">Advanced</a>
-                          <a href="/examples/USAGE.html">Usage</a>
+                          <a href="$BASE_PATH/">Home</a>
+                          <a href="$BASE_PATH/README.html">README</a>
+                          <a href="$BASE_PATH/QUICKSTART.html">Quick Start</a>
+                          <a href="$BASE_PATH/docs/ADVANCED_FEATURES.html">Advanced</a>
+                          <a href="$BASE_PATH/examples/USAGE.html">Usage</a>
                       </div>
                   </div>
               </div>
