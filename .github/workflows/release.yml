@@ -1,0 +1,148 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          echo "Generating changelog for $VERSION"
+          
+          # Get previous tag
+          PREV_TAG=$(git describe --abbrev=0 --tags ${VERSION}^ 2>/dev/null || echo "")
+          
+          if [ -z "$PREV_TAG" ]; then
+            echo "No previous tag found, using all commits"
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges)
+          else
+            echo "Changes since $PREV_TAG"
+            CHANGELOG=$(git log $PREV_TAG..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          fi
+          
+          # Save to file
+          cat > CHANGELOG.txt << EOF
+          # Release $VERSION
+          
+          ## Changes
+          
+          $CHANGELOG
+          
+          ## Docker Image
+          
+          \`\`\`bash
+          docker pull ghcr.io/${{ github.repository }}:${VERSION#v}
+          \`\`\`
+          
+          ## Installation
+          
+          ### Using Docker (Recommended)
+          
+          \`\`\`bash
+          docker run -i --rm \\
+            -e XROOTD_SERVER="root://dtn-eic.jlab.org" \\
+            -e XROOTD_BASE_DIR="/volatile/eic/EPIC" \\
+            ghcr.io/${{ github.repository }}:${VERSION#v}
+          \`\`\`
+          
+          ### Using npm
+          
+          \`\`\`bash
+          npm install
+          npm run build
+          node build/index.js
+          \`\`\`
+          
+          ## Documentation
+          
+          - [README](https://github.com/${{ github.repository }}/blob/$VERSION/README.md)
+          - [Quick Start](https://github.com/${{ github.repository }}/blob/$VERSION/QUICKSTART.md)
+          - [Advanced Features](https://github.com/${{ github.repository }}/blob/$VERSION/docs/ADVANCED_FEATURES.md)
+          EOF
+          
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          cat CHANGELOG.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          release_name: Release ${{ steps.version.outputs.version }}
+          body: ${{ steps.changelog.outputs.changelog }}
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.version, 'alpha') || contains(steps.version.outputs.version, 'beta') || contains(steps.version.outputs.version, 'rc') }}
+
+  build-artifacts:
+    needs: create-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Create release archive
+        run: |
+          mkdir -p release
+          cp -r build package.json package-lock.json README.md LICENSE release/
+          cd release
+          tar -czf ../xrootd-mcp-server-${{ needs.create-release.outputs.version }}.tar.gz .
+          cd ..
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./xrootd-mcp-server-${{ needs.create-release.outputs.version }}.tar.gz
+          asset_name: xrootd-mcp-server-${{ needs.create-release.outputs.version }}.tar.gz
+          asset_content_type: application/gzip
+
+  # Docker build is handled by docker.yml workflow which triggers on release
