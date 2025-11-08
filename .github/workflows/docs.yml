@@ -1,0 +1,336 @@
+name: Deploy Documentation to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+      - 'examples/USAGE.md'
+      - 'README.md'
+      - 'QUICKSTART.md'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Install marked-cli
+        run: npm install -g marked-cli
+
+      - name: Create documentation site
+        run: |
+          mkdir -p _site
+          
+          # Copy documentation files
+          cp -r docs _site/
+          mkdir -p _site/examples
+          cp examples/USAGE.md _site/examples/
+          
+          # Copy main docs
+          cp README.md _site/
+          cp QUICKSTART.md _site/
+          
+          # Create index.html
+          cat > _site/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>XRootD MCP Server Documentation</title>
+              <style>
+                  :root {
+                      --primary: #2563eb;
+                      --secondary: #64748b;
+                      --bg: #ffffff;
+                      --surface: #f8fafc;
+                      --text: #1e293b;
+                      --border: #e2e8f0;
+                  }
+                  
+                  @media (prefers-color-scheme: dark) {
+                      :root {
+                          --primary: #3b82f6;
+                          --secondary: #94a3b8;
+                          --bg: #0f172a;
+                          --surface: #1e293b;
+                          --text: #f1f5f9;
+                          --border: #334155;
+                      }
+                  }
+                  
+                  * {
+                      margin: 0;
+                      padding: 0;
+                      box-sizing: border-box;
+                  }
+                  
+                  body {
+                      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+                      line-height: 1.6;
+                      color: var(--text);
+                      background: var(--bg);
+                  }
+                  
+                  header {
+                      background: var(--surface);
+                      border-bottom: 1px solid var(--border);
+                      padding: 2rem 0;
+                  }
+                  
+                  .container {
+                      max-width: 1200px;
+                      margin: 0 auto;
+                      padding: 0 2rem;
+                  }
+                  
+                  h1 {
+                      color: var(--primary);
+                      font-size: 2.5rem;
+                      margin-bottom: 0.5rem;
+                  }
+                  
+                  .subtitle {
+                      color: var(--secondary);
+                      font-size: 1.2rem;
+                  }
+                  
+                  main {
+                      padding: 3rem 0;
+                  }
+                  
+                  .doc-grid {
+                      display: grid;
+                      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                      gap: 2rem;
+                      margin-top: 2rem;
+                  }
+                  
+                  .doc-card {
+                      background: var(--surface);
+                      border: 1px solid var(--border);
+                      border-radius: 8px;
+                      padding: 1.5rem;
+                      transition: transform 0.2s, box-shadow 0.2s;
+                  }
+                  
+                  .doc-card:hover {
+                      transform: translateY(-2px);
+                      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+                  }
+                  
+                  .doc-card h2 {
+                      color: var(--primary);
+                      font-size: 1.5rem;
+                      margin-bottom: 0.5rem;
+                  }
+                  
+                  .doc-card p {
+                      color: var(--secondary);
+                      margin-bottom: 1rem;
+                  }
+                  
+                  .doc-card a {
+                      color: var(--primary);
+                      text-decoration: none;
+                      font-weight: 500;
+                  }
+                  
+                  .doc-card a:hover {
+                      text-decoration: underline;
+                  }
+                  
+                  .badge {
+                      display: inline-block;
+                      background: var(--primary);
+                      color: white;
+                      padding: 0.25rem 0.75rem;
+                      border-radius: 4px;
+                      font-size: 0.875rem;
+                      margin-bottom: 0.5rem;
+                  }
+                  
+                  footer {
+                      margin-top: 4rem;
+                      padding: 2rem 0;
+                      border-top: 1px solid var(--border);
+                      text-align: center;
+                      color: var(--secondary);
+                  }
+              </style>
+          </head>
+          <body>
+              <header>
+                  <div class="container">
+                      <h1>XRootD MCP Server</h1>
+                      <p class="subtitle">Model Context Protocol server for XRootD file system access</p>
+                  </div>
+              </header>
+              
+              <main class="container">
+                  <h2 style="margin-bottom: 1rem;">Documentation</h2>
+                  
+                  <div class="doc-grid">
+                      <div class="doc-card">
+                          <span class="badge">Getting Started</span>
+                          <h2>README</h2>
+                          <p>Project overview, features, and tool reference</p>
+                          <a href="README.html">Read →</a>
+                      </div>
+                      
+                      <div class="doc-card">
+                          <span class="badge">Getting Started</span>
+                          <h2>Quick Start</h2>
+                          <p>Installation guide and basic setup instructions</p>
+                          <a href="QUICKSTART.html">Read →</a>
+                      </div>
+                      
+                      <div class="doc-card">
+                          <span class="badge">Usage</span>
+                          <h2>Usage Guide</h2>
+                          <p>Comprehensive tool usage examples and patterns</p>
+                          <a href="examples/USAGE.html">Read →</a>
+                      </div>
+                      
+                      <div class="doc-card">
+                          <span class="badge">Advanced</span>
+                          <h2>Advanced Features</h2>
+                          <p>Deep dive into search, analysis, and discovery tools</p>
+                          <a href="docs/ADVANCED_FEATURES.html">Read →</a>
+                      </div>
+                      
+                      <div class="doc-card">
+                          <span class="badge">Technical</span>
+                          <h2>Caching Strategy</h2>
+                          <p>Implementation details and performance optimization</p>
+                          <a href="docs/CACHING.html">Read →</a>
+                      </div>
+                  </div>
+              </main>
+              
+              <footer class="container">
+                  <p>XRootD MCP Server • Built for EIC Scientific Computing</p>
+              </footer>
+          </body>
+          </html>
+          EOF
+          
+          # Convert markdown to HTML
+          for md in $(find _site -name "*.md"); do
+              html="${md%.md}.html"
+              cat > "$html" << 'HTMLEOF'
+          <!DOCTYPE html>
+          <html lang="en" data-color-mode="auto" data-light-theme="light" data-dark-theme="dark">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>XRootD MCP Server Documentation</title>
+              <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.5.0/github-markdown.min.css">
+              <style>
+                  body {
+                      margin: 0;
+                      padding: 0;
+                      background: #0d1117;
+                  }
+                  .markdown-body {
+                      box-sizing: border-box;
+                      min-width: 200px;
+                      max-width: 980px;
+                      margin: 0 auto;
+                      padding: 45px;
+                  }
+                  @media (max-width: 767px) {
+                      .markdown-body {
+                          padding: 15px;
+                      }
+                  }
+                  .header {
+                      background: #161b22;
+                      border-bottom: 1px solid #30363d;
+                      padding: 1rem 0;
+                      margin-bottom: 2rem;
+                  }
+                  .header-content {
+                      max-width: 980px;
+                      margin: 0 auto;
+                      padding: 0 45px;
+                  }
+                  .header h1 {
+                      margin: 0;
+                      color: #58a6ff;
+                      font-size: 1.5rem;
+                  }
+                  .nav {
+                      margin-top: 0.5rem;
+                  }
+                  .nav a {
+                      color: #8b949e;
+                      text-decoration: none;
+                      margin-right: 1rem;
+                      font-size: 0.875rem;
+                  }
+                  .nav a:hover {
+                      color: #58a6ff;
+                  }
+              </style>
+          </head>
+          <body>
+              <div class="header">
+                  <div class="header-content">
+                      <h1>XRootD MCP Server</h1>
+                      <div class="nav">
+                          <a href="/">Home</a>
+                          <a href="/README.html">README</a>
+                          <a href="/QUICKSTART.html">Quick Start</a>
+                          <a href="/docs/ADVANCED_FEATURES.html">Advanced</a>
+                          <a href="/examples/USAGE.html">Usage</a>
+                      </div>
+                  </div>
+              </div>
+              <div class="markdown-body">
+          HTMLEOF
+              
+              marked "$md" >> "$html"
+              
+              cat >> "$html" << 'HTMLEOF'
+              </div>
+          </body>
+          </html>
+          HTMLEOF
+          done
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
