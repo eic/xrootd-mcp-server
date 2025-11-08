@@ -280,6 +280,139 @@ All tools return descriptive errors:
 - xrdfs command failures
 - Buffer size exceeded (very large directories)
 
+## ROOT File Analysis
+
+The server includes comprehensive ROOT file analysis capabilities using jsroot.
+
+### analyze_root_file
+
+Analyze the complete structure of a ROOT file, including trees, branches, and metadata.
+
+**Example:**
+
+```javascript
+analyze_root_file({ 
+  path: "RECO/25.10.2/epic_craterlake/DIS/NC/18x275/q2_0.001_1.0/pythia8NCDIS_18x275_minQ2=0.001.root"
+})
+```
+
+**Returns:**
+- File size (bytes and human-readable)
+- All ROOT keys (TTree, TDirectory, etc.)
+- Tree information:
+  - Number of entries
+  - Branch details (name, size, compression)
+  - Total/compressed sizes
+  - Compression factors
+
+**Use Cases:**
+- Inspect ROOT file structure
+- Verify file integrity
+- Understand data organization
+- Debug ROOT files
+
+### extract_podio_metadata
+
+Extract metadata from the `podio_metadata` tree (commonly used in EIC simulation/reconstruction).
+
+**Example:**
+
+```javascript
+extract_podio_metadata({ 
+  path: "RECO/25.10.2/epic_craterlake/DIS/NC/18x275/q2_0.001_1.0/pythia8NCDIS_18x275_minQ2=0.001.root"
+})
+```
+
+**Returns:**
+- All metadata branches with their types and entry counts
+- Useful for understanding data provenance and configuration
+
+### get_event_statistics
+
+Get detailed event statistics from the `events` tree, including per-collection analysis.
+
+**Example:**
+
+```javascript
+get_event_statistics({ 
+  path: "RECO/25.10.2/epic_craterlake/DIS/NC/18x275/q2_0.001_1.0/pythia8NCDIS_18x275_minQ2=0.001.root"
+})
+```
+
+**Returns:**
+- Total number of events
+- Collection count
+- Per-collection statistics:
+  - Name (e.g., `ReconstructedChargedParticles`)
+  - Entry count
+  - Total size (uncompressed and compressed)
+  - Compression factor
+  - Average size per event
+- Collections sorted by size (largest first)
+
+**Use Cases:**
+- Understand event structure
+- Identify large collections
+- Estimate storage requirements
+- Validate data completeness
+
+### get_dataset_event_statistics
+
+Aggregate event statistics across all ROOT files in a dataset.
+
+**Example:**
+
+```javascript
+get_dataset_event_statistics({ 
+  path: "RECO/25.10.2/epic_craterlake/DIS/NC/18x275/q2_0.001_1.0"
+})
+```
+
+**Returns:**
+- Total file count in dataset
+- Total events across all files
+- Total size (uncompressed and compressed)
+- Overall compression factor
+- Average events per file
+- Aggregated collection statistics:
+  - Total entries across all files
+  - Total size (uncompressed and compressed)
+  - Average compression factor
+  - Number of files containing this collection
+  - Percentage of files with this collection
+- Per-file breakdown with events, sizes, and collection counts
+
+**Use Cases:**
+- Dataset-level analysis
+- Production monitoring
+- Storage planning
+- Identify missing collections
+- Compare datasets
+
+**Example Output:**
+```json
+{
+  "fileCount": 50,
+  "totalEvents": 250000,
+  "totalSize": 5368709120,
+  "totalSizeHuman": "5.00 GB",
+  "overallCompressionFactor": "2.45",
+  "averageEventsPerFile": 5000,
+  "collectionAggregates": [
+    {
+      "name": "ReconstructedChargedParticles",
+      "totalEntries": 1250000,
+      "totalSize": 1073741824,
+      "totalSizeHuman": "1.00 GB",
+      "averageCompressionFactor": "2.50",
+      "filesContaining": 50,
+      "percentOfFiles": "100.0%"
+    },
+    ...
+  ]
+}
+```
+
 ## Integration with LLMs
 
 These tools are designed for natural language queries:
@@ -292,5 +425,11 @@ These tools are designed for natural language queries:
 
 **User:** "Find all ROOT files larger than 500MB"
 **LLM:** Uses `list_directory_filtered()` with minSize
+
+**User:** "What collections are in this ROOT file and how large are they?"
+**LLM:** Uses `get_event_statistics()` to analyze collections
+
+**User:** "Compare event counts across the 25.10.2 DIS NC dataset"
+**LLM:** Uses `get_dataset_event_statistics()` for aggregate analysis
 
 The tools automatically handle path resolution, formatting, and error cases.

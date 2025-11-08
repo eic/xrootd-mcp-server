@@ -8,6 +8,7 @@ import {
   Tool,
 } from '@modelcontextprotocol/sdk/types.js';
 import { XRootDClient } from './xrootd.js';
+import { ROOTAnalyzer } from './root-analysis.js';
 
 const XROOTD_SERVER = process.env.XROOTD_SERVER;
 const XROOTD_BASE_DIR = process.env.XROOTD_BASE_DIR || '/';
@@ -21,6 +22,7 @@ if (!XROOTD_SERVER) {
 }
 
 const xrootdClient = new XRootDClient(XROOTD_SERVER, XROOTD_BASE_DIR, XROOTD_CACHE_ENABLED, XROOTD_CACHE_TTL, XROOTD_CACHE_MAX_SIZE);
+const rootAnalyzer = new ROOTAnalyzer(xrootdClient);
 
 const server = new Server(
   {
@@ -36,7 +38,7 @@ const server = new Server(
 
 // Log server info for debugging
 console.error(`Server: xrootd-mcp-server v0.1.0`);
-console.error(`Capabilities: tools (5 available)`);
+console.error(`Capabilities: tools (16 available)`);
 
 const tools: Tool[] = [
   {
@@ -265,6 +267,62 @@ const tools: Tool[] = [
         hours: {
           type: 'number',
           description: 'Number of hours to look back (default: 24)',
+        },
+      },
+      required: ['path'],
+    },
+  },
+  {
+    name: 'analyze_root_file',
+    description: 'Analyze ROOT file structure, trees, and branches',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        path: {
+          type: 'string',
+          description: 'Path to ROOT file',
+        },
+      },
+      required: ['path'],
+    },
+  },
+  {
+    name: 'extract_podio_metadata',
+    description: 'Extract metadata from podio_metadata tree in ROOT file',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        path: {
+          type: 'string',
+          description: 'Path to ROOT file',
+        },
+      },
+      required: ['path'],
+    },
+  },
+  {
+    name: 'get_event_statistics',
+    description: 'Get event statistics and collection info from ROOT file',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        path: {
+          type: 'string',
+          description: 'Path to ROOT file',
+        },
+      },
+      required: ['path'],
+    },
+  },
+  {
+    name: 'get_dataset_event_statistics',
+    description: 'Aggregate event statistics across all ROOT files in a dataset',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        path: {
+          type: 'string',
+          description: 'Path to dataset directory',
         },
       },
       required: ['path'],
@@ -533,6 +591,123 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                   path: f.path,
                   size: formatBytes(f.size),
                   modificationTime: f.modificationTime,
+                })),
+              }, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'analyze_root_file': {
+        const path = String(args.path);
+        const structure = await rootAnalyzer.analyzeFile(path);
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                ...structure,
+                sizeHuman: formatBytes(structure.size),
+                trees: structure.trees.map(tree => ({
+                  ...tree,
+                  totalSizeHuman: formatBytes(tree.totalSize),
+                  zipBytesHuman: formatBytes(tree.zipBytes),
+                  compressionFactor: tree.zipBytes > 0 ? tree.totalSize / tree.zipBytes : 1.0,
+                  branches: tree.branches.map(branch => ({
+                    ...branch,
+                    totalSizeHuman: formatBytes(branch.totalSize),
+                    zipBytesHuman: formatBytes(branch.zipBytes),
+                  })),
+                })),
+              }, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'extract_podio_metadata': {
+        const path = String(args.path);
+        const metadata = await rootAnalyzer.extractPodioMetadata(path);
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(metadata, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'get_event_statistics': {
+        const path = String(args.path);
+        const stats = await rootAnalyzer.getEventStatistics(path);
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                totalEvents: stats.totalEvents,
+                collectionCount: Object.keys(stats.collectionStats).length,
+                collections: Object.entries(stats.collectionStats).map(([name, coll]) => ({
+                  name,
+                  entries: coll.entries,
+                  totalSize: coll.totalSize,
+                  totalSizeHuman: formatBytes(coll.totalSize),
+                  zipBytes: coll.zipBytes,
+                  zipBytesHuman: formatBytes(coll.zipBytes),
+                  compressionFactor: coll.compressionFactor.toFixed(2),
+                  averageSizePerEvent: coll.averageSizePerEvent,
+                  averageSizePerEventHuman: formatBytes(coll.averageSizePerEvent),
+                })).sort((a, b) => b.totalSize - a.totalSize),
+              }, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'get_dataset_event_statistics': {
+        const path = String(args.path);
+        const stats = await rootAnalyzer.getDatasetEventStatistics(path);
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                datasetPath: stats.datasetPath,
+                fileCount: stats.files.length,
+                totalEvents: stats.totalEvents,
+                totalSize: stats.totalSize,
+                totalSizeHuman: formatBytes(stats.totalSize),
+                totalZipBytes: stats.totalZipBytes,
+                totalZipBytesHuman: formatBytes(stats.totalZipBytes),
+                overallCompressionFactor: stats.totalZipBytes > 0 
+                  ? (stats.totalSize / stats.totalZipBytes).toFixed(2) 
+                  : '1.00',
+                averageEventsPerFile: Math.round(stats.averageEventsPerFile),
+                collectionAggregates: Object.entries(stats.collectionAggregates).map(([name, agg]) => ({
+                  name,
+                  totalEntries: agg.totalEntries,
+                  totalSize: agg.totalSize,
+                  totalSizeHuman: formatBytes(agg.totalSize),
+                  totalZipBytes: agg.totalZipBytes,
+                  totalZipBytesHuman: formatBytes(agg.totalZipBytes),
+                  averageCompressionFactor: agg.averageCompressionFactor.toFixed(2),
+                  filesContaining: agg.filesContaining,
+                  percentOfFiles: ((agg.filesContaining / stats.files.length) * 100).toFixed(1) + '%',
+                })).sort((a, b) => b.totalSize - a.totalSize),
+                files: stats.files.map(f => ({
+                  path: f.path,
+                  events: f.events,
+                  size: f.size,
+                  sizeHuman: formatBytes(f.size),
+                  zipBytes: f.zipBytes,
+                  zipBytesHuman: formatBytes(f.zipBytes),
+                  compressionFactor: f.zipBytes > 0 ? (f.size / f.zipBytes).toFixed(2) : '1.00',
+                  collectionCount: Object.keys(f.collections).length,
                 })),
               }, null, 2),
             },

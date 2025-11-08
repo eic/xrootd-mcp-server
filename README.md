@@ -8,8 +8,14 @@ A Model Context Protocol (MCP) server that provides access to XRootD file system
 
 - **List directories**: Browse XRootD file system hierarchy
 - **File metadata**: Get detailed information about files (size, modification time, permissions)
-- **Read file contents**: Access file data from XRootD servers
-- **File operations**: Check file existence, get statistics
+- **Read file contents**: Access file data from XRootD servers with byte-range support
+- **File operations**: Check file existence, calculate directory sizes
+- **Search & filtering**: Find files by pattern (glob/regex), filter by size/date
+- **Statistics & analytics**: Comprehensive directory statistics and usage reports
+- **Campaign discovery**: List available production campaigns and datasets
+- **Recent changes**: Track newly added files and monitor production progress
+- **ROOT file analysis**: Inspect ROOT file structure, extract metadata, analyze events and collections
+- **Dataset aggregation**: Aggregate event statistics across multiple ROOT files
 - **Protocol support**: Connect to XRootD servers via root:// protocol
 
 ## Installation
