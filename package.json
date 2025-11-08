@@ -11,7 +11,9 @@
     "build": "tsc",
     "watch": "tsc --watch",
     "test": "npm run build && node --test build/test/*.test.js",
-    "test:integration": "npm run test"
+    "test:integration": "npm run test",
+    "test:coverage": "npm run build && c8 --reporter=text --reporter=lcov --reporter=json-summary node --test build/test/*.test.js",
+    "coverage": "npm run test:coverage"
   },
   "keywords": [
     "mcp",
@@ -25,6 +27,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.19.24",
+    "c8": "^10.1.3",
     "typescript": "^5.9.3"
   }
 }

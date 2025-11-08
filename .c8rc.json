@@ -1,0 +1,21 @@
+{
+  "all": false,
+  "include": [
+    "build/**/*.js"
+  ],
+  "exclude": [
+    "build/test/**",
+    "**/*.d.ts",
+    "**/*.test.js",
+    "node_modules/**"
+  ],
+  "reporter": [
+    "text",
+    "lcov",
+    "json-summary",
+    "html"
+  ],
+  "report-dir": "./coverage",
+  "clean": true,
+  "temp-directory": "./.nyc_output"
+}

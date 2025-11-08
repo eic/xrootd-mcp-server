@@ -50,20 +50,24 @@ jobs:
       - name: Build project
         run: npm run build
 
-      - name: Run integration tests
+      - name: Run integration tests with coverage
         env:
           XROOTD_SERVER: root://dtn-eic.jlab.org
           XROOTD_BASE_DIR: /volatile/eic/EPIC
-        run: npm test
+        run: npm run test:coverage
         timeout-minutes: 10
 
-      - name: Test results summary
+      - name: Generate test summary
         if: always()
-        run: |
-          echo "## Test Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          if [ $? -eq 0 ]; then
-            echo "✅ All tests passed" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ Some tests failed" >> $GITHUB_STEP_SUMMARY
-          fi
+        env:
+          XROOTD_SERVER: root://dtn-eic.jlab.org
+          XROOTD_BASE_DIR: /volatile/eic/EPIC
+        run: node scripts/test-summary.js
+
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 30
