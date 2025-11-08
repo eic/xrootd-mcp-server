@@ -145,4 +145,47 @@ jobs:
           asset_name: xrootd-mcp-server-${{ needs.create-release.outputs.version }}.tar.gz
           asset_content_type: application/gzip
 
-  # Docker build is handled by docker.yml workflow which triggers on release
+  verify-docker-image:
+    needs: create-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for Docker build
+        run: |
+          echo "Waiting for Docker workflow to complete..."
+          sleep 30
+      
+      - name: Check Docker image availability
+        run: |
+          VERSION="${{ needs.create-release.outputs.version }}"
+          VERSION_NO_V="${VERSION#v}"
+          
+          echo "Checking for Docker image with tag: $VERSION_NO_V"
+          
+          # Try to pull the image (may take a few attempts)
+          MAX_ATTEMPTS=10
+          ATTEMPT=1
+          
+          while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+            echo "Attempt $ATTEMPT of $MAX_ATTEMPTS"
+            
+            if docker pull ghcr.io/${{ github.repository }}:$VERSION_NO_V; then
+              echo "✅ Docker image successfully published with tag: $VERSION_NO_V"
+              
+              # Also verify latest tag for non-prerelease
+              if [[ ! "$VERSION" =~ (alpha|beta|rc) ]]; then
+                if docker pull ghcr.io/${{ github.repository }}:latest; then
+                  echo "✅ Docker image also tagged as 'latest'"
+                fi
+              fi
+              
+              exit 0
+            fi
+            
+            echo "Image not yet available, waiting..."
+            sleep 30
+            ATTEMPT=$((ATTEMPT + 1))
+          done
+          
+          echo "❌ Failed to verify Docker image after $MAX_ATTEMPTS attempts"
+          echo "The image may still be building. Check the Docker workflow: ${{ github.server_url }}/${{ github.repository }}/actions"
+          exit 1

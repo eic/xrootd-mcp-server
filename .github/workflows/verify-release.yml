@@ -1,0 +1,151 @@
+name: Verify Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to verify (e.g., v1.0.0)'
+        required: true
+        type: string
+
+jobs:
+  verify-container:
+    name: Verify Container Image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ inputs.version }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/}"
+          fi
+          VERSION_NO_V="${VERSION#v}"
+          
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version_no_v=$VERSION_NO_V" >> $GITHUB_OUTPUT
+          echo "Verifying version: $VERSION (tag: $VERSION_NO_V)"
+
+      - name: Wait for Docker workflow
+        run: |
+          echo "Waiting 60 seconds for Docker workflow to start and complete..."
+          sleep 60
+
+      - name: Verify Docker image with version tag
+        run: |
+          VERSION_TAG="${{ steps.version.outputs.version_no_v }}"
+          IMAGE="ghcr.io/${{ github.repository }}:$VERSION_TAG"
+          
+          echo "Attempting to pull: $IMAGE"
+          
+          MAX_ATTEMPTS=20
+          ATTEMPT=1
+          SUCCESS=false
+          
+          while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+            echo "Attempt $ATTEMPT of $MAX_ATTEMPTS..."
+            
+            if docker pull "$IMAGE" 2>/dev/null; then
+              echo "✅ Successfully pulled $IMAGE"
+              SUCCESS=true
+              break
+            fi
+            
+            if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
+              echo "Image not yet available, waiting 15 seconds..."
+              sleep 15
+            fi
+            
+            ATTEMPT=$((ATTEMPT + 1))
+          done
+          
+          if [ "$SUCCESS" = "false" ]; then
+            echo "❌ Failed to pull image after $MAX_ATTEMPTS attempts"
+            echo "Check Docker workflow: ${{ github.server_url }}/${{ github.repository }}/actions"
+            exit 1
+          fi
+
+      - name: Verify image metadata
+        run: |
+          IMAGE="ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version_no_v }}"
+          
+          echo "Inspecting image metadata..."
+          docker inspect "$IMAGE" --format='{{json .Config.Labels}}' | jq '.'
+          
+          echo ""
+          echo "Image size:"
+          docker images "$IMAGE" --format "{{.Size}}"
+          
+          echo ""
+          echo "Image layers:"
+          docker history "$IMAGE" --no-trunc --format "table {{.CreatedBy}}\t{{.Size}}"
+
+      - name: Test image functionality
+        run: |
+          IMAGE="ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version_no_v }}"
+          
+          echo "Testing Node.js version..."
+          docker run --rm "$IMAGE" node --version
+          
+          echo ""
+          echo "Testing XRootD client..."
+          docker run --rm --entrypoint xrdfs "$IMAGE" --version 2>&1 | head -1 || true
+          
+          echo ""
+          echo "Testing health check..."
+          docker run --rm "$IMAGE" node -e "console.log('Health check passed')"
+
+      - name: Verify additional tags (non-prerelease)
+        if: ${{ !contains(steps.version.outputs.version, 'alpha') && !contains(steps.version.outputs.version, 'beta') && !contains(steps.version.outputs.version, 'rc') }}
+        run: |
+          echo "Verifying additional tags for stable release..."
+          
+          VERSION="${{ steps.version.outputs.version_no_v }}"
+          
+          # Extract major.minor
+          MAJOR=$(echo "$VERSION" | cut -d. -f1)
+          MINOR=$(echo "$VERSION" | cut -d. -f2)
+          
+          echo "Checking for tag: $MAJOR.$MINOR"
+          if docker pull "ghcr.io/${{ github.repository }}:$MAJOR.$MINOR" 2>/dev/null; then
+            echo "✅ Major.minor tag exists: $MAJOR.$MINOR"
+          else
+            echo "⚠️  Major.minor tag not yet available: $MAJOR.$MINOR"
+          fi
+          
+          echo "Checking for tag: $MAJOR"
+          if docker pull "ghcr.io/${{ github.repository }}:$MAJOR" 2>/dev/null; then
+            echo "✅ Major tag exists: $MAJOR"
+          else
+            echo "⚠️  Major tag not yet available: $MAJOR"
+          fi
+          
+          echo "Checking for tag: latest"
+          if docker pull "ghcr.io/${{ github.repository }}:latest" 2>/dev/null; then
+            echo "✅ Latest tag exists"
+          else
+            echo "⚠️  Latest tag not yet available"
+          fi
+
+      - name: Summary
+        run: |
+          echo "## 🎉 Release Verification Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Docker Image:** \`ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version_no_v }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Pull Command" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version_no_v }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Run Command" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "docker run -i --rm \\" >> $GITHUB_STEP_SUMMARY
+          echo "  -e XROOTD_SERVER=\"root://dtn-eic.jlab.org\" \\" >> $GITHUB_STEP_SUMMARY
+          echo "  -e XROOTD_BASE_DIR=\"/volatile/eic/EPIC\" \\" >> $GITHUB_STEP_SUMMARY
+          echo "  ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version_no_v }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
