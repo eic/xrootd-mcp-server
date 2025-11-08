@@ -9,7 +9,9 @@
   },
   "scripts": {
     "build": "tsc",
-    "watch": "tsc --watch"
+    "watch": "tsc --watch",
+    "test": "npm run build && node --test build/test/*.test.js",
+    "test:integration": "npm run test"
   },
   "keywords": [
     "mcp",
