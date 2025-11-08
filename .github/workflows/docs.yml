@@ -36,8 +36,11 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
-      - name: Install marked-cli
-        run: npm install -g marked-cli
+      - name: Install markdown converter
+        run: |
+          npm install -g marked-cli
+          # Verify installation
+          npx marked --version || echo "Fallback to npx"
 
       - name: Create documentation site
         run: |
@@ -312,7 +315,8 @@ jobs:
               <div class="markdown-body">
           HTMLEOF
               
-              marked "$md" >> "$html"
+              # Use npx to ensure marked is found
+              npx marked "$md" >> "$html"
               
               cat >> "$html" << 'HTMLEOF'
               </div>
