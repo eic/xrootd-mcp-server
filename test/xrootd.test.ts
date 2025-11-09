@@ -130,7 +130,7 @@ describe('XRootD MCP Server Integration Tests', () => {
   });
 
   describe('Search Functionality', () => {
-    it('should search for files by pattern', async () => {
+    it('should search for files by pattern', { timeout: 90000 }, async () => {
       const result: any = await client.callTool({
         name: 'search_files',
         arguments: {
@@ -143,7 +143,7 @@ describe('XRootD MCP Server Integration Tests', () => {
       assert.ok(result.content.length > 0);
     });
 
-    it('should search with regex pattern', async () => {
+    it('should search with regex pattern', { timeout: 90000 }, async () => {
       const result: any = await client.callTool({
         name: 'search_files',
         arguments: {
@@ -171,7 +171,7 @@ describe('XRootD MCP Server Integration Tests', () => {
   });
 
   describe('File Statistics', () => {
-    it('should get statistics for EVGEN directory', async () => {
+    it('should get statistics for EVGEN directory', { timeout: 90000 }, async () => {
       const result: any = await client.callTool({
         name: 'get_statistics',
         arguments: { path: 'EVGEN' },
