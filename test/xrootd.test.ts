@@ -13,9 +13,10 @@ describe('XRootD MCP Server Integration Tests', () => {
   before(async () => {
     // Create transport and client
     transport = new StdioClientTransport({
-      command: 'node',
+      command: process.execPath,
       args: ['build/src/index.js'],
       env: {
+        ...process.env,
         XROOTD_SERVER: TEST_SERVER,
         XROOTD_BASE_DIR: TEST_BASE_DIR,
       },
