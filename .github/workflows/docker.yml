@@ -66,8 +66,8 @@ jobs:
             type=ref,event=pr
             # For branches: use branch name
             type=ref,event=branch
-            # Add commit SHA for traceability
-            type=sha,prefix={{branch}}-
+            # Add commit SHA for traceability, but not for PRs
+            type=sha,prefix={{branch}}-,enable=${{ github.event_name != 'pull_request' }}
           labels: |
             org.opencontainers.image.title=XRootD MCP Server
             org.opencontainers.image.description=Model Context Protocol server for XRootD file system access
@@ -85,14 +85,8 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64,linux/arm64
-
-      - name: Generate artifact attestation
-        if: github.event_name == 'release'
-        uses: actions/attest-build-provenance@v3
-        with:
-          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          subject-digest: ${{ steps.build.outputs.digest }}
-          push-to-registry: true
+          provenance: true
+          attests: '{"subject":{"name":"${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"}}'
       
       - name: Output image tags
         run: |
