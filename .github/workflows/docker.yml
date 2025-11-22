@@ -74,6 +74,11 @@ jobs:
             org.opencontainers.image.vendor=EIC
             maintainer=Wouter Deconinck
 
+      # Debug step to verify the attests value is properly formatted
+      # This helps troubleshoot any JSON parsing issues with the attests input
+      - name: Debug attests value
+        run: echo "attests => ${{ toJson({ subject: { name: format('{0}/{1}', env.REGISTRY, env.IMAGE_NAME) } }) }}"
+
       - name: Build and push Docker image
         id: build
         uses: docker/build-push-action@v6
@@ -86,7 +91,10 @@ jobs:
           cache-to: type=gha,mode=max
           platforms: linux/amd64,linux/arm64
           provenance: true
-          attests: '{"subject":{"name":"${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"}}'
+          # Use toJson() to avoid nested quoting issues with JSON strings
+          # This serializes the object at runtime and ensures proper JSON formatting
+          # If the action expects a different format, revert to: attests: '{"subject":{"name":"..."}}'
+          attests: ${{ toJson({ subject: { name: format('{0}/{1}', env.REGISTRY, env.IMAGE_NAME) } }) }}
       
       - name: Output image tags
         run: |
