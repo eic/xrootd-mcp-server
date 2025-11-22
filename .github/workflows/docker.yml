@@ -74,11 +74,6 @@ jobs:
             org.opencontainers.image.vendor=EIC
             maintainer=Wouter Deconinck
 
-      # Debug step to verify the attests value is properly formatted
-      # This helps troubleshoot any JSON parsing issues with the attests input
-      - name: Debug attests value
-        run: echo "attests => ${{ format('{{\"subject\":{{\"name\":\"{0}/{1}\"}}}}', env.REGISTRY, env.IMAGE_NAME) }}"
-
       - name: Build and push Docker image
         id: build
         uses: docker/build-push-action@v6
@@ -91,11 +86,6 @@ jobs:
           cache-to: type=gha,mode=max
           platforms: linux/amd64,linux/arm64
           provenance: true
-          # Use format() to build the JSON string and avoid nested quoting issues
-          # Double braces {{ }} are used to escape braces in format() strings
-          # This ensures proper JSON formatting without quote escaping conflicts
-          # If the action expects a different format, revert to: attests: '{"subject":{"name":"..."}}'
-          attests: ${{ format('{{\"subject\":{{\"name\":\"{0}/{1}\"}}}}', env.REGISTRY, env.IMAGE_NAME) }}
       
       - name: Output image tags
         run: |
