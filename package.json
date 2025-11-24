@@ -27,7 +27,7 @@
     "jsroot": "^7.10.0"
   },
   "devDependencies": {
-    "@types/node": "^20.19.24",
+    "@types/node": "^20.19.25",
     "c8": "^10.1.3",
     "typescript": "^5.9.3"
   }
