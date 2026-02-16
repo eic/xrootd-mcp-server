@@ -24,7 +24,7 @@
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.26.0",
-    "jsroot": "^7.10.1"
+    "jsroot": "^7.10.2"
   },
   "devDependencies": {
     "@types/node": "^20.19.33",
