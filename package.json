@@ -23,8 +23,8 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.26.0",
-    "jsroot": "^7.10.2"
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "jsroot": "^7.10.3"
   },
   "devDependencies": {
     "@types/node": "^20.19.33",
