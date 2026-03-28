@@ -10,19 +10,79 @@ import {
 import { XRootDClient } from './xrootd.js';
 import { ROOTAnalyzer } from './root-analysis.js';
 
-const XROOTD_SERVER = process.env.XROOTD_SERVER;
-const XROOTD_BASE_DIR = process.env.XROOTD_BASE_DIR || '/';
-const XROOTD_CACHE_ENABLED = process.env.XROOTD_CACHE_ENABLED !== 'false';
-const XROOTD_CACHE_TTL = parseInt(process.env.XROOTD_CACHE_TTL || '60', 10);
-const XROOTD_CACHE_MAX_SIZE = parseInt(process.env.XROOTD_CACHE_MAX_SIZE || '1000', 10);
+interface ServerConfig {
+  name: string;
+  url: string;
+  baseDir?: string;
+  cacheTTL?: number;
+  cacheMaxSize?: number;
+  cacheEnabled?: boolean;
+}
 
-if (!XROOTD_SERVER) {
-  console.error('Error: XROOTD_SERVER environment variable is required');
+interface ServerEntry {
+  client: XRootDClient;
+  rootAnalyzer: ROOTAnalyzer;
+}
+
+function buildServerConfigs(): ServerConfig[] {
+  const XROOTD_SERVERS = process.env.XROOTD_SERVERS;
+  const XROOTD_SERVER = process.env.XROOTD_SERVER;
+
+  if (XROOTD_SERVERS) {
+    try {
+      const configs = JSON.parse(XROOTD_SERVERS) as ServerConfig[];
+      if (!Array.isArray(configs) || configs.length === 0) {
+        console.error('Error: XROOTD_SERVERS must be a non-empty JSON array');
+        process.exit(1);
+      }
+      return configs;
+    } catch (e) {
+      console.error('Error: XROOTD_SERVERS is not valid JSON:', e);
+      process.exit(1);
+    }
+  }
+
+  if (XROOTD_SERVER) {
+    return [
+      {
+        name: 'default',
+        url: XROOTD_SERVER,
+        baseDir: process.env.XROOTD_BASE_DIR || '/',
+        cacheEnabled: process.env.XROOTD_CACHE_ENABLED !== 'false',
+        cacheTTL: parseInt(process.env.XROOTD_CACHE_TTL || '60', 10),
+        cacheMaxSize: parseInt(process.env.XROOTD_CACHE_MAX_SIZE || '1000', 10),
+      },
+    ];
+  }
+
+  console.error('Error: XROOTD_SERVERS or XROOTD_SERVER environment variable is required');
   process.exit(1);
 }
 
-const xrootdClient = new XRootDClient(XROOTD_SERVER, XROOTD_BASE_DIR, XROOTD_CACHE_ENABLED, XROOTD_CACHE_TTL, XROOTD_CACHE_MAX_SIZE);
-const rootAnalyzer = new ROOTAnalyzer(xrootdClient);
+const serverConfigs = buildServerConfigs();
+
+const servers = new Map<string, ServerEntry>();
+for (const cfg of serverConfigs) {
+  const client = new XRootDClient(
+    cfg.url,
+    cfg.baseDir ?? '/',
+    cfg.cacheEnabled ?? true,
+    cfg.cacheTTL ?? 60,
+    cfg.cacheMaxSize ?? 1000
+  );
+  servers.set(cfg.name, { client, rootAnalyzer: new ROOTAnalyzer(client) });
+}
+
+function getClient(serverName?: string): ServerEntry {
+  if (serverName) {
+    const entry = servers.get(serverName);
+    if (!entry) {
+      throw new Error(`Unknown server: "${serverName}". Available servers: ${Array.from(servers.keys()).join(', ')}`);
+    }
+    return entry;
+  }
+  return servers.values().next().value as ServerEntry;
+}
 
 const server = new Server(
   {
@@ -38,18 +98,30 @@ const server = new Server(
 
 // Log server info for debugging
 console.error(`Server: xrootd-mcp-server v0.1.0`);
-console.error(`Capabilities: tools (16 available)`);
+console.error(`Capabilities: tools (17 available)`);
 
 const tools: Tool[] = [
   {
+    name: 'list_servers',
+    description: 'List all configured XRootD servers',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+    },
+  },
+  {
     name: 'list_directory',
-    description: 'List contents of a directory on the XRootD server',
+    description: 'List contents of a directory on an XRootD server',
     inputSchema: {
       type: 'object',
       properties: {
         path: {
           type: 'string',
           description: 'Path to the directory to list',
+        },
+        server: {
+          type: 'string',
+          description: 'Name of the XRootD server to use (default: first configured server)',
         },
       },
       required: ['path'],
@@ -65,13 +137,17 @@ const tools: Tool[] = [
           type: 'string',
           description: 'Path to the file or directory',
         },
+        server: {
+          type: 'string',
+          description: 'Name of the XRootD server to use (default: first configured server)',
+        },
       },
       required: ['path'],
     },
   },
   {
     name: 'read_file',
-    description: 'Read contents of a file from the XRootD server (supports byte ranges)',
+    description: 'Read contents of a file from an XRootD server (supports byte ranges)',
     inputSchema: {
       type: 'object',
       properties: {
@@ -87,19 +163,27 @@ const tools: Tool[] = [
           type: 'number',
           description: 'Optional: End byte position for partial read',
         },
+        server: {
+          type: 'string',
+          description: 'Name of the XRootD server to use (default: first configured server)',
+        },
       },
       required: ['path'],
     },
   },
   {
     name: 'check_file_exists',
-    description: 'Check if a file or directory exists on the XRootD server',
+    description: 'Check if a file or directory exists on an XRootD server',
     inputSchema: {
       type: 'object',
       properties: {
         path: {
           type: 'string',
           description: 'Path to check',
+        },
+        server: {
+          type: 'string',
+          description: 'Name of the XRootD server to use (default: first configured server)',
         },
       },
       required: ['path'],
@@ -114,6 +198,10 @@ const tools: Tool[] = [
         path: {
           type: 'string',
           description: 'Path to the directory',
+        },
+        server: {
+          type: 'string',
+          description: 'Name of the XRootD server to use (default: first configured server)',
         },
       },
       required: ['path'],
@@ -141,6 +229,10 @@ const tools: Tool[] = [
           type: 'boolean',
           description: 'Treat pattern as regex instead of glob (default: false)',
         },
+        server: {
+          type: 'string',
+          description: 'Name of the XRootD server to use (default: first configured server)',
+        },
       },
       required: ['pattern'],
     },
@@ -158,6 +250,10 @@ const tools: Tool[] = [
         recursive: {
           type: 'boolean',
           description: 'Include subdirectories (default: true)',
+        },
+        server: {
+          type: 'string',
+          description: 'Name of the XRootD server to use (default: first configured server)',
         },
       },
       required: ['path'],
@@ -197,6 +293,10 @@ const tools: Tool[] = [
           type: 'string',
           description: 'Glob pattern for filename (e.g., "DEMP*")',
         },
+        server: {
+          type: 'string',
+          description: 'Name of the XRootD server to use (default: first configured server)',
+        },
       },
       required: ['path'],
     },
@@ -219,6 +319,10 @@ const tools: Tool[] = [
           type: 'boolean',
           description: 'Search recursively (default: true)',
         },
+        server: {
+          type: 'string',
+          description: 'Name of the XRootD server to use (default: first configured server)',
+        },
       },
       required: ['path'],
     },
@@ -232,6 +336,10 @@ const tools: Tool[] = [
         recoPath: {
           type: 'string',
           description: 'Path to RECO directory (default: "RECO")',
+        },
+        server: {
+          type: 'string',
+          description: 'Name of the XRootD server to use (default: first configured server)',
         },
       },
     },
@@ -249,6 +357,10 @@ const tools: Tool[] = [
         recoPath: {
           type: 'string',
           description: 'Path to RECO directory (default: "RECO")',
+        },
+        server: {
+          type: 'string',
+          description: 'Name of the XRootD server to use (default: first configured server)',
         },
       },
       required: ['campaign'],
@@ -268,6 +380,10 @@ const tools: Tool[] = [
           type: 'number',
           description: 'Number of hours to look back (default: 24)',
         },
+        server: {
+          type: 'string',
+          description: 'Name of the XRootD server to use (default: first configured server)',
+        },
       },
       required: ['path'],
     },
@@ -281,6 +397,10 @@ const tools: Tool[] = [
         path: {
           type: 'string',
           description: 'Path to ROOT file',
+        },
+        server: {
+          type: 'string',
+          description: 'Name of the XRootD server to use (default: first configured server)',
         },
       },
       required: ['path'],
@@ -296,6 +416,10 @@ const tools: Tool[] = [
           type: 'string',
           description: 'Path to ROOT file',
         },
+        server: {
+          type: 'string',
+          description: 'Name of the XRootD server to use (default: first configured server)',
+        },
       },
       required: ['path'],
     },
@@ -310,6 +434,10 @@ const tools: Tool[] = [
           type: 'string',
           description: 'Path to ROOT file',
         },
+        server: {
+          type: 'string',
+          description: 'Name of the XRootD server to use (default: first configured server)',
+        },
       },
       required: ['path'],
     },
@@ -323,6 +451,10 @@ const tools: Tool[] = [
         path: {
           type: 'string',
           description: 'Path to dataset directory',
+        },
+        server: {
+          type: 'string',
+          description: 'Name of the XRootD server to use (default: first configured server)',
         },
       },
       required: ['path'],
@@ -343,9 +475,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
   try {
     switch (name) {
+      case 'list_servers': {
+        const serverList = Array.from(servers.entries()).map(([srvName, { client }]) => ({
+          name: srvName,
+          cacheStats: client.getCacheStats(),
+        }));
+        return {
+          content: [{ type: 'text', text: JSON.stringify({ servers: serverList }, null, 2) }],
+        };
+      }
+
       case 'list_directory': {
+        const { client } = getClient(args.server ? String(args.server) : undefined);
         const path = String(args.path);
-        const entries = await xrootdClient.listDirectory(path);
+        const entries = await client.listDirectory(path);
         
         return {
           content: [
@@ -358,8 +501,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'get_file_info': {
+        const { client } = getClient(args.server ? String(args.server) : undefined);
         const path = String(args.path);
-        const info = await xrootdClient.getFileInfo(path);
+        const info = await client.getFileInfo(path);
         
         return {
           content: [
@@ -372,11 +516,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'read_file': {
+        const { client } = getClient(args.server ? String(args.server) : undefined);
         const path = String(args.path);
         const start = args.start !== undefined ? Number(args.start) : undefined;
         const end = args.end !== undefined ? Number(args.end) : undefined;
         
-        const content = await xrootdClient.readFile(path, start, end);
+        const content = await client.readFile(path, start, end);
         
         return {
           content: [
@@ -389,8 +534,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'check_file_exists': {
+        const { client } = getClient(args.server ? String(args.server) : undefined);
         const path = String(args.path);
-        const exists = await xrootdClient.fileExists(path);
+        const exists = await client.fileExists(path);
         
         return {
           content: [
@@ -403,8 +549,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'get_directory_size': {
+        const { client } = getClient(args.server ? String(args.server) : undefined);
         const path = String(args.path);
-        const size = await xrootdClient.getDirectorySize(path);
+        const size = await client.getDirectorySize(path);
         
         return {
           content: [
@@ -417,12 +564,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'search_files': {
+        const { client } = getClient(args.server ? String(args.server) : undefined);
         const pattern = String(args.pattern);
         const basePath = args.basePath ? String(args.basePath) : '.';
         const recursive = args.recursive !== undefined ? Boolean(args.recursive) : true;
         const useRegex = args.useRegex !== undefined ? Boolean(args.useRegex) : false;
         
-        const results = await xrootdClient.searchFiles(pattern, basePath, recursive, useRegex);
+        const results = await client.searchFiles(pattern, basePath, recursive, useRegex);
         
         return {
           content: [
@@ -444,10 +592,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'get_statistics': {
+        const { client } = getClient(args.server ? String(args.server) : undefined);
         const path = String(args.path);
         const recursive = args.recursive !== undefined ? Boolean(args.recursive) : true;
         
-        const stats = await xrootdClient.getStatistics(path, recursive);
+        const stats = await client.getStatistics(path, recursive);
         
         return {
           content: [
@@ -469,6 +618,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'list_directory_filtered': {
+        const { client } = getClient(args.server ? String(args.server) : undefined);
         const path = String(args.path);
         const filter: any = {};
         
@@ -479,7 +629,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (args.modifiedBefore) filter.modifiedBefore = new Date(String(args.modifiedBefore));
         if (args.namePattern) filter.namePattern = String(args.namePattern);
         
-        const entries = await xrootdClient.listDirectoryFiltered(path, filter);
+        const entries = await client.listDirectoryFiltered(path, filter);
         
         return {
           content: [
@@ -497,11 +647,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'find_recent_files': {
+        const { client } = getClient(args.server ? String(args.server) : undefined);
         const path = String(args.path);
         const hours = args.hours !== undefined ? Number(args.hours) : 24;
         const recursive = args.recursive !== undefined ? Boolean(args.recursive) : true;
         
-        const results = await xrootdClient.findRecentFiles(path, hours, recursive);
+        const results = await client.findRecentFiles(path, hours, recursive);
         
         return {
           content: [
@@ -524,8 +675,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'list_campaigns': {
+        const { client } = getClient(args.server ? String(args.server) : undefined);
         const recoPath = args.recoPath ? String(args.recoPath) : 'RECO';
-        const campaigns = await xrootdClient.listCampaigns(recoPath);
+        const campaigns = await client.listCampaigns(recoPath);
         
         return {
           content: [
@@ -541,10 +693,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'list_datasets': {
+        const { client } = getClient(args.server ? String(args.server) : undefined);
         const campaign = String(args.campaign);
         const recoPath = args.recoPath ? String(args.recoPath) : 'RECO';
         
-        const datasets = await xrootdClient.listDatasets(campaign, recoPath);
+        const datasets = await client.listDatasets(campaign, recoPath);
         
         return {
           content: [
@@ -561,10 +714,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'summarize_recent_changes': {
+        const { client } = getClient(args.server ? String(args.server) : undefined);
         const path = String(args.path);
         const hours = args.hours !== undefined ? Number(args.hours) : 24;
         
-        const summary = await xrootdClient.summarizeRecentChanges(path, hours);
+        const summary = await client.summarizeRecentChanges(path, hours);
         
         return {
           content: [
@@ -599,8 +753,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'analyze_root_file': {
+        const { rootAnalyzer: ra } = getClient(args.server ? String(args.server) : undefined);
         const path = String(args.path);
-        const structure = await rootAnalyzer.analyzeFile(path);
+        const structure = await ra.analyzeFile(path);
         
         return {
           content: [
@@ -627,8 +782,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'extract_podio_metadata': {
+        const { rootAnalyzer: ra } = getClient(args.server ? String(args.server) : undefined);
         const path = String(args.path);
-        const metadata = await rootAnalyzer.extractPodioMetadata(path);
+        const metadata = await ra.extractPodioMetadata(path);
         
         return {
           content: [
@@ -641,8 +797,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'get_event_statistics': {
+        const { rootAnalyzer: ra } = getClient(args.server ? String(args.server) : undefined);
         const path = String(args.path);
-        const stats = await rootAnalyzer.getEventStatistics(path);
+        const stats = await ra.getEventStatistics(path);
         
         return {
           content: [
@@ -651,8 +808,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               text: JSON.stringify({
                 totalEvents: stats.totalEvents,
                 collectionCount: Object.keys(stats.collectionStats).length,
-                collections: Object.entries(stats.collectionStats).map(([name, coll]) => ({
-                  name,
+                collections: Object.entries(stats.collectionStats).map(([collName, coll]) => ({
+                  name: collName,
                   entries: coll.entries,
                   totalSize: coll.totalSize,
                   totalSizeHuman: formatBytes(coll.totalSize),
@@ -669,8 +826,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'get_dataset_event_statistics': {
+        const { rootAnalyzer: ra } = getClient(args.server ? String(args.server) : undefined);
         const path = String(args.path);
-        const stats = await rootAnalyzer.getDatasetEventStatistics(path);
+        const stats = await ra.getDatasetEventStatistics(path);
         
         return {
           content: [
@@ -688,8 +846,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                   ? (stats.totalSize / stats.totalZipBytes).toFixed(2) 
                   : '1.00',
                 averageEventsPerFile: Math.round(stats.averageEventsPerFile),
-                collectionAggregates: Object.entries(stats.collectionAggregates).map(([name, agg]) => ({
-                  name,
+                collectionAggregates: Object.entries(stats.collectionAggregates).map(([collName, agg]) => ({
+                  name: collName,
                   totalEntries: agg.totalEntries,
                   totalSize: agg.totalSize,
                   totalSizeHuman: formatBytes(agg.totalSize),
@@ -746,9 +904,11 @@ async function main() {
   await server.connect(transport);
   
   console.error('XRootD MCP Server running on stdio');
-  console.error(`Connected to XRootD server: ${XROOTD_SERVER}`);
-  console.error(`Base directory: ${XROOTD_BASE_DIR}`);
-  console.error(`Caching: ${XROOTD_CACHE_ENABLED ? `enabled (TTL: ${XROOTD_CACHE_TTL}m)` : 'disabled'}`);
+  console.error(`Configured servers: ${Array.from(servers.keys()).join(', ')}`);
+  for (const [srvName, { client }] of servers.entries()) {
+    const stats = client.getCacheStats();
+    console.error(`  [${srvName}] cache entries: ${stats.size}`);
+  }
 }
 
 main().catch((error) => {
