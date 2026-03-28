@@ -143,7 +143,7 @@ describe('XRootD MCP Server Integration Tests', () => {
         assert.ok(result.content);
         assert.ok(result.content.length > 0);
       } catch (error: any) {
-        if (error.code === -2) {
+        if (error.code === -32001) {
           console.log('  ⊘ Search timed out - directory too large for CI environment');
           return;
         }
@@ -165,7 +165,7 @@ describe('XRootD MCP Server Integration Tests', () => {
         assert.ok(result.content);
         assert.ok(result.content.length > 0);
       } catch (error: any) {
-        if (error.code === -2) {
+        if (error.code === -32001) {
           console.log('  ⊘ Search timed out - directory too large for CI environment');
           return;
         }
@@ -209,7 +209,7 @@ describe('XRootD MCP Server Integration Tests', () => {
         assert.ok(stats.hasOwnProperty('totalFiles'));
         assert.ok(stats.hasOwnProperty('totalDirectories'));
       } catch (error: any) {
-        if (error.code === -2) {
+        if (error.code === -32001) {
           console.log('  ⊘ Statistics timed out - directory too large for CI environment');
           return;
         }
