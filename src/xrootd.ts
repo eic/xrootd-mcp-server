@@ -1,8 +1,16 @@
-import { exec } from 'child_process';
+import { exec, execFile } from 'child_process';
 import { promisify } from 'util';
 import { DirectoryCache } from './cache.js';
 
 const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
+
+// Percent-encode special characters in each path segment, preserving slashes.
+// This is needed when embedding a path in an XRootD URL (e.g. for xrdcp) so
+// that characters like '=', '+', '#' are not misinterpreted by XRootD's URL parser.
+function encodeXRootDPath(path: string): string {
+  return path.split('/').map(segment => encodeURIComponent(segment)).join('/');
+}
 
 export interface FileInfo {
   path: string;
@@ -108,7 +116,7 @@ export class XRootDClient {
 
   private getFullPath(path: string): string {
     const resolvedPath = this.resolvePath(path);
-    return `${this.serverUrl}${resolvedPath}`;
+    return `${this.serverUrl}${encodeXRootDPath(resolvedPath)}`;
   }
 
   async listDirectory(path: string, useCache: boolean = true): Promise<DirectoryEntry[]> {
@@ -124,7 +132,7 @@ export class XRootDClient {
     
     // Cache miss - fetch from server
     try {
-      const { stdout } = await execAsync(`xrdfs ${this.serverUrl} ls -l ${resolvedPath}`, {
+      const { stdout } = await execFileAsync('xrdfs', [this.serverUrl, 'ls', '-l', resolvedPath], {
         maxBuffer: 50 * 1024 * 1024 // 50MB buffer for large directories
       });
       const entries: DirectoryEntry[] = [];
@@ -176,7 +184,7 @@ export class XRootDClient {
   async getFileInfo(path: string): Promise<FileInfo> {
     const resolvedPath = this.resolvePath(path);
     try {
-      const { stdout } = await execAsync(`xrdfs ${this.serverUrl} stat ${resolvedPath}`);
+      const { stdout } = await execFileAsync('xrdfs', [this.serverUrl, 'stat', resolvedPath]);
       
       const sizeMatch = stdout.match(/Size:\s+(\d+)/);
       const modTimeMatch = stdout.match(/ModTime:\s+(.+)/);
@@ -197,15 +205,17 @@ export class XRootDClient {
     const fullPath = this.getFullPath(path);
     
     try {
-      let command = `xrdcp ${fullPath} -`;
-      
+      let args: string[];
+
       if (start !== undefined || end !== undefined) {
         const rangeStart = start ?? 0;
         const rangeEnd = end ?? '';
-        command = `xrdcp --range ${rangeStart}:${rangeEnd} ${fullPath} -`;
+        args = ['xrdcp', '--range', `${rangeStart}:${rangeEnd}`, fullPath, '-'];
+      } else {
+        args = ['xrdcp', fullPath, '-'];
       }
-      
-      const { stdout } = await execAsync(command, { 
+
+      const { stdout } = await execFileAsync(args[0], args.slice(1), {
         encoding: 'buffer',
         maxBuffer: 100 * 1024 * 1024 // 100MB max
       });
@@ -253,11 +263,11 @@ export class XRootDClient {
     try {
       if (!useRegex) {
         // Use xrdfs find with glob pattern
-        const findCommand = recursive 
-          ? `xrdfs ${this.serverUrl} find ${resolvedPath} -name '${pattern}'`
-          : `xrdfs ${this.serverUrl} ls ${resolvedPath}`;
-        
-        const { stdout } = await execAsync(findCommand);
+        const args = recursive
+          ? [this.serverUrl, 'find', resolvedPath, '-name', pattern]
+          : [this.serverUrl, 'ls', resolvedPath];
+
+        const { stdout } = await execFileAsync('xrdfs', args);
         const paths = stdout.trim().split('\n').filter(p => p.trim());
         
         // Get info for each file
