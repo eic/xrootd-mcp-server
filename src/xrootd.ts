@@ -70,10 +70,12 @@ export class XRootDClient {
   private serverUrl: string;
   private baseDirectory: string;
   private cache: DirectoryCache;
+  private enableCache: boolean;
 
   constructor(serverUrl: string, baseDirectory: string = '/', enableCache: boolean = true, cacheTTLMinutes: number = 60, cacheMaxSize: number = 1000) {
     this.serverUrl = serverUrl.replace(/\/$/, '');
     this.baseDirectory = baseDirectory.replace(/\/$/, '') || '/';
+    this.enableCache = enableCache;
     this.cache = new DirectoryCache(cacheTTLMinutes, cacheMaxSize);
     
     if (enableCache) {
@@ -121,9 +123,11 @@ export class XRootDClient {
 
   async listDirectory(path: string, useCache: boolean = true): Promise<DirectoryEntry[]> {
     const resolvedPath = this.resolvePath(path);
+    // Respect the global enableCache setting in addition to the per-call useCache flag
+    const shouldUseCache = this.enableCache && useCache;
     
     // Check cache first
-    if (useCache) {
+    if (shouldUseCache) {
       const cached = this.cache.get(resolvedPath);
       if (cached) {
         return cached;
@@ -163,7 +167,7 @@ export class XRootDClient {
       }
       
       // Store in cache
-      if (useCache) {
+      if (shouldUseCache) {
         this.cache.set(resolvedPath, entries);
       }
       

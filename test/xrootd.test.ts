@@ -351,3 +351,105 @@ describe('XRootD MCP Server Integration Tests', () => {
     });
   });
 });
+
+describe('Multi-Server Configuration Tests', () => {
+  let multiClient: Client;
+  let multiTransport: StdioClientTransport;
+
+  const MULTI_SERVER_CONFIG = JSON.stringify([
+    {
+      name: 'primary',
+      url: TEST_SERVER,
+      baseDir: TEST_BASE_DIR,
+    },
+    {
+      name: 'secondary',
+      url: TEST_SERVER,
+      baseDir: TEST_BASE_DIR,
+      cacheEnabled: false,
+    },
+  ]);
+
+  before(async () => {
+    multiTransport = new StdioClientTransport({
+      command: process.execPath,
+      args: ['build/src/index.js'],
+      env: {
+        ...process.env,
+        XROOTD_SERVER: undefined,
+        XROOTD_SERVERS: MULTI_SERVER_CONFIG,
+      },
+    });
+
+    multiClient = new Client(
+      {
+        name: 'xrootd-multi-test-client',
+        version: '1.0.0',
+      },
+      {
+        capabilities: {},
+      }
+    );
+
+    await multiClient.connect(multiTransport);
+  });
+
+  after(async () => {
+    await multiClient.close();
+  });
+
+  describe('list_servers tool', () => {
+    it('should list all configured servers without arguments', async () => {
+      // list_servers takes no parameters; calling without arguments must not throw
+      const result: any = await multiClient.callTool({ name: 'list_servers', arguments: {} });
+      assert.ok(result.content);
+      assert.ok(result.content.length > 0);
+      const parsed = JSON.parse(result.content[0].text);
+      assert.ok(Array.isArray(parsed.servers));
+      assert.equal(parsed.servers.length, 2);
+      const names = parsed.servers.map((s: any) => s.name);
+      assert.ok(names.includes('primary'));
+      assert.ok(names.includes('secondary'));
+    });
+
+    it('should include cache stats for each server', async () => {
+      const result: any = await multiClient.callTool({ name: 'list_servers', arguments: {} });
+      const parsed = JSON.parse(result.content[0].text);
+      for (const srv of parsed.servers) {
+        assert.ok(srv.hasOwnProperty('cacheStats'));
+      }
+    });
+  });
+
+  describe('server routing', () => {
+    it('should default to first configured server when server param is omitted', async () => {
+      const result: any = await multiClient.callTool({
+        name: 'list_directory',
+        arguments: { path: '/' },
+      });
+      assert.ok(result.content);
+      assert.ok(result.content.length > 0);
+    });
+
+    it('should route to named server when server param is provided', async () => {
+      const result: any = await multiClient.callTool({
+        name: 'list_directory',
+        arguments: { path: '/', server: 'secondary' },
+      });
+      assert.ok(result.content);
+      assert.ok(result.content.length > 0);
+    });
+
+    it('should return error for unknown server name', async () => {
+      try {
+        await multiClient.callTool({
+          name: 'list_directory',
+          arguments: { path: '/', server: 'nonexistent' },
+        });
+        assert.fail('Should have thrown an error for unknown server');
+      } catch (error) {
+        assert.ok(error);
+      }
+    });
+  });
+});

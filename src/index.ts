@@ -24,18 +24,105 @@ interface ServerEntry {
   rootAnalyzer: ROOTAnalyzer;
 }
 
+// Safe XRootD URL pattern: root://host[:port] with no whitespace or shell metacharacters
+// Supports IPv4 hostnames and IPv6 addresses in brackets (e.g., root://[::1]:1094)
+const SAFE_XROOTD_URL_RE = /^root:\/\/(\[[0-9a-fA-F:]+\]|[A-Za-z0-9._\-]+)(:\d+)?$/;
+
+function validateServerUrl(url: string, serverName: string): void {
+  if (!SAFE_XROOTD_URL_RE.test(url)) {
+    console.error(
+      `Error: Server "${serverName}" has an invalid or unsafe URL "${url}". ` +
+      `URL must match root://host[:port] with no whitespace or shell metacharacters.`
+    );
+    process.exit(1);
+  }
+}
+
+function normalizeCacheEnabled(rawValue: unknown, defaultValue: boolean): boolean {
+  if (typeof rawValue === 'boolean') {
+    return rawValue;
+  }
+  if (typeof rawValue === 'string') {
+    const v = rawValue.trim().toLowerCase();
+    if (v === 'false' || v === '0' || v === 'no' || v === 'off' || v === '') {
+      return false;
+    }
+    if (v === 'true' || v === '1' || v === 'yes' || v === 'on') {
+      return true;
+    }
+    return defaultValue;
+  }
+  if (typeof rawValue === 'number') {
+    return rawValue !== 0;
+  }
+  if (rawValue == null) {
+    return defaultValue;
+  }
+  return defaultValue;
+}
+
+function normalizeNonNegativeInt(
+  rawValue: unknown,
+  defaultValue: number,
+  fieldName: string,
+  serverName: string
+): number {
+  let num: number | undefined;
+  if (typeof rawValue === 'number') {
+    num = rawValue;
+  } else if (typeof rawValue === 'string' && rawValue.trim() !== '') {
+    const parsed = parseInt(rawValue, 10);
+    if (!Number.isNaN(parsed)) {
+      num = parsed;
+    }
+  }
+
+  if (num == null || !Number.isFinite(num) || Number.isNaN(num) || num < 0) {
+    if (rawValue !== undefined && rawValue !== null) {
+      console.warn(
+        `Warning: invalid value for ${fieldName} on server "${serverName}", using default ${defaultValue}`
+      );
+    }
+    return defaultValue;
+  }
+
+  return num;
+}
+
 function buildServerConfigs(): ServerConfig[] {
   const XROOTD_SERVERS = process.env.XROOTD_SERVERS;
   const XROOTD_SERVER = process.env.XROOTD_SERVER;
 
   if (XROOTD_SERVERS) {
     try {
-      const configs = JSON.parse(XROOTD_SERVERS) as ServerConfig[];
+      const configs = JSON.parse(XROOTD_SERVERS) as unknown[];
       if (!Array.isArray(configs) || configs.length === 0) {
         console.error('Error: XROOTD_SERVERS must be a non-empty JSON array');
         process.exit(1);
       }
-      return configs;
+      const seenNames = new Set<string>();
+      configs.forEach((config, index) => {
+        if (config === null || typeof config !== 'object') {
+          console.error(`Error: XROOTD_SERVERS[${index}] must be an object`);
+          process.exit(1);
+        }
+        const name = (config as ServerConfig).name;
+        const url = (config as ServerConfig).url;
+        if (typeof name !== 'string' || name.trim().length === 0) {
+          console.error(`Error: XROOTD_SERVERS[${index}].name must be a non-empty string`);
+          process.exit(1);
+        }
+        if (typeof url !== 'string' || url.trim().length === 0) {
+          console.error(`Error: XROOTD_SERVERS[${index}].url must be a non-empty string`);
+          process.exit(1);
+        }
+        if (seenNames.has(name)) {
+          console.error(`Error: Duplicate server name '${name}' found in XROOTD_SERVERS at index ${index}`);
+          process.exit(1);
+        }
+        seenNames.add(name);
+      });
+      return configs as ServerConfig[];
     } catch (e) {
       console.error('Error: XROOTD_SERVERS is not valid JSON:', e);
       process.exit(1);
@@ -63,12 +150,17 @@ const serverConfigs = buildServerConfigs();
 
 const servers = new Map<string, ServerEntry>();
 for (const cfg of serverConfigs) {
+  validateServerUrl(cfg.url, cfg.name);
+  const anyCfg = cfg as any;
+  const cacheEnabled = normalizeCacheEnabled(anyCfg.cacheEnabled, true);
+  const cacheTTL = normalizeNonNegativeInt(anyCfg.cacheTTL, 60, 'cacheTTL', cfg.name);
+  const cacheMaxSize = normalizeNonNegativeInt(anyCfg.cacheMaxSize, 1000, 'cacheMaxSize', cfg.name);
   const client = new XRootDClient(
     cfg.url,
     cfg.baseDir ?? '/',
-    cfg.cacheEnabled ?? true,
-    cfg.cacheTTL ?? 60,
-    cfg.cacheMaxSize ?? 1000
+    cacheEnabled,
+    cacheTTL,
+    cacheMaxSize
   );
   servers.set(cfg.name, { client, rootAnalyzer: new ROOTAnalyzer(client) });
 }
@@ -469,7 +561,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
-  if (!args) {
+  // list_servers takes no parameters; allow missing arguments for it
+  if (!args && name !== 'list_servers') {
     throw new Error('Missing arguments');
   }
 
