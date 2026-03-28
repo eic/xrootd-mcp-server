@@ -72,6 +72,11 @@ This starts two containers:
 
 ### Automatic Updates with Watchtower
 
+> **Security note:** Watchtower requires access to the Docker daemon socket
+> (`/var/run/docker.sock`), which grants it full control over the host Docker
+> daemon. In shared or multi-tenant environments, consider whether this
+> privilege is acceptable before enabling the `watchtower` service.
+
 [Watchtower](https://containrrr.dev/watchtower/) keeps the `xrootd-mcp-server` container up to date without any manual intervention. When a new image is pushed to `ghcr.io/eic/xrootd-mcp-server`, Watchtower:
 
 1. Pulls the new image
