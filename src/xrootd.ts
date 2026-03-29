@@ -140,6 +140,16 @@ export class XRootDClient {
     return `${normalizedServerUrl}/${encodedPath}`;
   }
 
+  /**
+   * Construct an HTTPS URL for a file, suitable for jsroot's HTTP-based access.
+   * Converts root://host[:port] to https://host[:port] and appends the resolved path.
+   */
+  getHttpUrl(path: string): string {
+    const resolvedPath = this.resolvePath(path);
+    const httpBase = this.serverUrl.replace(/^root:\/\//, 'https://');
+    return `${httpBase}${resolvedPath}`;
+  }
+
   async listDirectory(path: string, useCache: boolean = true, limit?: number): Promise<DirectoryEntry[]> {
     if (limit !== undefined && (!Number.isFinite(limit) || !Number.isInteger(limit) || limit < 1)) {
       throw new Error('Invalid "limit" parameter: must be a positive integer.');

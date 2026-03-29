@@ -382,6 +382,61 @@ describe('XRootD MCP Server Integration Tests', () => {
       }
     });
   });
+
+  describe('HTTP-first ROOT File Access', () => {
+    // These tests verify that the ROOT analysis tools first attempt HTTP access,
+    // and only fall back to xrdcp when allow_copy: true is provided.
+
+    it('analyze_root_file should attempt HTTP access and report copy required when HTTP fails', async () => {
+      // Use a nonexistent path – even if the server supported HTTP the file
+      // would 404, so the error should always be a CopyRequiredError message.
+      const result: any = await client.callTool({
+        name: 'analyze_root_file',
+        arguments: { path: `${TEST_BASE_DIR}/nonexistent-test-file.root` },
+      });
+      assert.ok(result.content);
+      assert.ok(result.content.length > 0);
+      // Should be an error, and the message should guide the user to use allow_copy
+      assert.ok(result.isError, 'Expected an error response when HTTP access fails');
+      const errorText: string = result.content[0].text;
+      assert.ok(
+        errorText.includes('allow_copy') || errorText.includes('copy'),
+        `Error message should mention the copy option, got: ${errorText}`
+      );
+    });
+
+    it('get_event_statistics should attempt HTTP access and report copy required when HTTP fails', async () => {
+      const result: any = await client.callTool({
+        name: 'get_event_statistics',
+        arguments: { path: `${TEST_BASE_DIR}/nonexistent-test-file.root` },
+      });
+      assert.ok(result.content);
+      assert.ok(result.isError, 'Expected an error response when HTTP access fails');
+      const errorText: string = result.content[0].text;
+      assert.ok(
+        errorText.includes('allow_copy') || errorText.includes('copy'),
+        `Error message should mention the copy option, got: ${errorText}`
+      );
+    });
+
+    it('analyze_root_file with allow_copy: true should attempt xrdcp (not CopyRequiredError)', async () => {
+      const result: any = await client.callTool({
+        name: 'analyze_root_file',
+        arguments: { path: `${TEST_BASE_DIR}/nonexistent-test-file.root`, allow_copy: true },
+      });
+      assert.ok(result.content);
+      assert.ok(result.content.length > 0);
+      // Whether it succeeds or fails, the error must NOT be about a required copy —
+      // it should be an xrdcp/file-not-found error since allow_copy was granted.
+      if (result.isError) {
+        const errorText: string = result.content[0].text;
+        assert.ok(
+          !errorText.includes('CopyRequiredError'),
+          `Should not get CopyRequiredError with allow_copy=true: ${errorText}`
+        );
+      }
+    });
+  });
 });
 
 describe('Large Directory Event Counting', () => {
