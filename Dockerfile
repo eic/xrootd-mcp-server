@@ -61,4 +61,4 @@ LABEL org.opencontainers.image.title="XRootD MCP Server" \
       org.opencontainers.image.licenses="MIT"
 
 # Run the application
-CMD ["node", "build/index.js"]
+CMD ["node", "build/src/index.js"]
