@@ -61,3 +61,23 @@ updates:
       # Major version updates require manual review
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
+
+  # Docker dependencies
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    assignees:
+      - "wdconinc"
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "build"
+      include: "scope"
+    pull-request-branch-name:
+      separator: "-"
