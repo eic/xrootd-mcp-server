@@ -114,8 +114,9 @@ export class ROOTAnalyzer {
       }
       return file;
     } catch (httpError: any) {
+      const httpErrorDetail = String(httpError?.message ?? httpError);
       if (!allowCopy) {
-        throw new CopyRequiredError(remotePath, httpUrl, httpError.message);
+        throw new CopyRequiredError(remotePath, httpUrl, httpErrorDetail);
       }
       // Fall back to a full xrdcp copy
       const fileData = await this.xrootdClient.readFile(remotePath);
@@ -354,6 +355,11 @@ export class ROOTAnalyzer {
         
         fileStats.push(fileEventStats);
       } catch (error) {
+        // Rethrow CopyRequiredError so the caller gets actionable guidance
+        // instead of silently returning a zeroed aggregate.
+        if (error instanceof CopyRequiredError) {
+          throw error;
+        }
         console.error(`Failed to analyze file ${file.path}:`, error);
       }
     }

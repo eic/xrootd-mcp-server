@@ -159,6 +159,23 @@ describe('HTTP Fallback Behavior', () => {
     assert.strictEqual(url, 'https://example.jlab.org:1094/some/file.root');
   });
 
+  it('getHttpUrl should percent-encode special characters in path segments', () => {
+    const client2 = new XRootDClient('root://example.jlab.org', '/', false);
+    // '#' would start a fragment, '=' and '+' need encoding; '/' must be preserved
+    const url = client2.getHttpUrl('/dir#1/q2=10/pi+/file.root');
+    assert.strictEqual(
+      url,
+      'https://example.jlab.org/dir%231/q2%3D10/pi%2B/file.root',
+      'Special chars in path segments should be percent-encoded'
+    );
+  });
+
+  it('getHttpUrl should not produce a double slash for root-based paths', () => {
+    const client2 = new XRootDClient('root://example.jlab.org', '/', false);
+    const url = client2.getHttpUrl('/data/file.root');
+    assert.ok(!url.includes('//data'), `URL should not contain double slash before path: ${url}`);
+  });
+
   it('should throw CopyRequiredError when HTTP access fails and allow_copy is false', async () => {
     // Use a deliberately unreachable HTTPS URL by pointing at localhost with
     // an unused port so that the HTTP request fails immediately.

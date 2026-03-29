@@ -426,13 +426,13 @@ describe('XRootD MCP Server Integration Tests', () => {
       });
       assert.ok(result.content);
       assert.ok(result.content.length > 0);
-      // Whether it succeeds or fails, the error must NOT be about a required copy —
+      // Whether it succeeds or fails, the error must NOT contain allow_copy guidance —
       // it should be an xrdcp/file-not-found error since allow_copy was granted.
       if (result.isError) {
         const errorText: string = result.content[0].text;
         assert.ok(
-          !errorText.includes('CopyRequiredError'),
-          `Should not get CopyRequiredError with allow_copy=true: ${errorText}`
+          !errorText.includes('allow_copy') && !errorText.includes('CopyRequiredError'),
+          `Error with allow_copy=true should not mention allow_copy guidance: ${errorText}`
         );
       }
     });

@@ -142,12 +142,19 @@ export class XRootDClient {
 
   /**
    * Construct an HTTPS URL for a file, suitable for jsroot's HTTP-based access.
-   * Converts root://host[:port] to https://host[:port] and appends the resolved path.
+   * Converts root://host[:port] to https://host[:port] and appends the resolved,
+   * URL-encoded path (each segment percent-encoded, '/' separators preserved).
    */
   getHttpUrl(path: string): string {
     const resolvedPath = this.resolvePath(path);
-    const httpBase = this.serverUrl.replace(/^root:\/\//, 'https://');
-    return `${httpBase}${resolvedPath}`;
+    // Normalize serverUrl to avoid trailing slashes, then convert protocol.
+    const normalizedServerUrl = this.serverUrl.replace(/\/+$/, '');
+    const httpBase = normalizedServerUrl.replace(/^root:\/\//, 'https://');
+    // Percent-encode each path segment while preserving '/' separators so that
+    // characters like '#', '+', and spaces are not misinterpreted by HTTP parsers.
+    // encodedPath already begins with '/', so concatenate directly to avoid '//'.
+    const encodedPath = encodeXRootDPath(resolvedPath);
+    return `${httpBase}${encodedPath}`;
   }
 
   async listDirectory(path: string, useCache: boolean = true, limit?: number): Promise<DirectoryEntry[]> {
