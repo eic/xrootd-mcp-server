@@ -59,10 +59,10 @@ XROOTD_BASE_DIR=/volatile/eic/EPIC
 XROOTD_CACHE_TTL=60
 ```
 
-Run with docker-compose:
+Run with Docker Compose:
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 This starts two containers:
@@ -94,13 +94,13 @@ WATCHTOWER_POLL_INTERVAL=1800
 To disable automatic updates, remove or comment out the `watchtower` service in `docker-compose.yml`, or stop it independently:
 
 ```bash
-docker-compose stop watchtower
+docker compose stop watchtower
 ```
 
 To trigger an immediate update check:
 
 ```bash
-docker-compose pull xrootd-mcp-server && docker-compose up -d xrootd-mcp-server
+docker compose pull xrootd-mcp-server && docker compose up -d xrootd-mcp-server
 ```
 
 ## Authentication
