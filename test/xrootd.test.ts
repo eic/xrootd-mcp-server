@@ -359,6 +359,29 @@ describe('XRootD MCP Server Integration Tests', () => {
     });
   });
 
+  describe('xrdcp Path Encoding', () => {
+    // Verify that read_file (which uses xrdcp) does not over-encode path
+    // segments.  encodeURIComponent encodes '=' as '%3D', which makes
+    // directory names like "minQ2=1" unreachable on the server.
+    it('should not percent-encode "=" in paths passed to xrdcp', async () => {
+      const result: any = await client.callTool({
+        name: 'read_file',
+        arguments: { path: 'RECO/26.03.0/epic_craterlake/DIS/NC/10x100/minQ2=1/nonexistent.root' },
+      });
+      assert.ok(result.content);
+      assert.ok(result.content.length > 0);
+      // The file is intentionally nonexistent so the response must be an error.
+      assert.strictEqual(result.isError, true, 'Expected an error response for a nonexistent file');
+      // If '=' is incorrectly encoded to '%3D' the xrdcp URL will contain
+      // that sequence, and the error message echoes the URL back.
+      const errorText: string = result.content[0].text;
+      assert.ok(
+        !errorText.includes('%3D') && !errorText.includes('%3d'),
+        `'=' in path was incorrectly percent-encoded — encodeXRootDPath is too aggressive: ${errorText}`
+      );
+    });
+  });
+
   describe('xrdcp URL Construction', () => {
     // Verify that read_file (which uses xrdcp) builds absolute XRootD URLs
     // with the required double-slash separator (root://host//path).  Without
