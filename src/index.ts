@@ -596,6 +596,52 @@ const tools: Tool[] = [
       required: ['path'],
     },
   },
+  {
+    name: 'get_branch_histogram',
+    description: 'Fill a histogram of a TTree branch and return bin edges and counts. Prefers HTTP-based access; if unavailable, set allow_copy: true to fall back to xrdcp.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        path: {
+          type: 'string',
+          description: 'Path to ROOT file',
+        },
+        branch: {
+          type: 'string',
+          description: 'Branch name (or expression) to histogram, e.g. "ReconstructedParticles.momentum.x"',
+        },
+        tree: {
+          type: 'string',
+          description: 'TTree name to read from (default: "events")',
+        },
+        bins: {
+          type: 'integer',
+          description: 'Number of histogram bins (default: 100)',
+        },
+        xmin: {
+          type: 'number',
+          description: 'Lower bound of histogram range (auto-detected if omitted, requires xmax)',
+        },
+        xmax: {
+          type: 'number',
+          description: 'Upper bound of histogram range (auto-detected if omitted, requires xmin)',
+        },
+        cut: {
+          type: 'string',
+          description: 'Optional selection criterion applied per event, e.g. "ReconstructedParticles.momentum.z > 0"',
+        },
+        server: {
+          type: 'string',
+          description: 'Name of the XRootD server to use (default: first configured server)',
+        },
+        allow_copy: {
+          type: 'boolean',
+          description: 'Fall back to a full xrdcp file copy if HTTP access fails (default: false).',
+        },
+      },
+      required: ['path', 'branch'],
+    },
+  },
 ];
 
 server.setRequestHandler(ListToolsRequestSchema, async () => {
@@ -1031,6 +1077,28 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                   collectionCount: Object.keys(f.collections).length,
                 })),
               }, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'get_branch_histogram': {
+        const { rootAnalyzer: ra } = getClient(args.server ? String(args.server) : undefined);
+        const path = String(args.path);
+        const branch = String(args.branch);
+        const tree = args.tree ? String(args.tree) : 'events';
+        const bins = args.bins !== undefined ? Math.round(Number(args.bins)) : 100;
+        const xmin = args.xmin !== undefined ? Number(args.xmin) : undefined;
+        const xmax = args.xmax !== undefined ? Number(args.xmax) : undefined;
+        const cut = args.cut ? String(args.cut) : undefined;
+        const allowCopy = args.allow_copy === true;
+        const hist = await ra.histogramBranch(path, branch, tree, bins, xmin, xmax, cut, allowCopy);
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(hist, null, 2),
             },
           ],
         };

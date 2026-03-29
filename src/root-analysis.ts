@@ -1,4 +1,4 @@
-import { openFile } from 'jsroot';
+import { openFile, treeDraw } from 'jsroot';
 import { XRootDClient } from './xrootd.js';
 
 /**
@@ -94,6 +94,25 @@ export interface AggregatedCollectionStats {
   totalZipBytes: number;
   averageCompressionFactor: number;
   filesContaining: number;
+}
+
+export interface HistogramResult {
+  file: string;
+  tree: string;
+  branch: string;
+  cut?: string;
+  bins: number;
+  xmin: number;
+  xmax: number;
+  /** Bin edges array of length bins+1 (left edge of each bin, plus the right edge of the last bin) */
+  edges: number[];
+  /** Bin counts array of length bins */
+  counts: number[];
+  underflow: number;
+  overflow: number;
+  entries: number;
+  mean: number;
+  stddev: number;
 }
 
 export class ROOTAnalyzer {
@@ -380,5 +399,83 @@ export class ROOTAnalyzer {
       averageEventsPerFile: files.length > 0 ? totalEvents / files.length : 0,
       collectionAggregates,
     };
+  }
+
+  async histogramBranch(
+    remotePath: string,
+    branch: string,
+    treeName: string = 'events',
+    bins: number = 100,
+    xmin?: number,
+    xmax?: number,
+    cut?: string,
+    allowCopy: boolean = false,
+  ): Promise<HistogramResult> {
+    const file = await this.openRootFile(remotePath, allowCopy);
+
+    const tree = await file.readObject(treeName);
+    if (!tree) {
+      throw new Error(`Tree "${treeName}" not found in ${remotePath}`);
+    }
+
+    // Build the draw expression: "branch >> h(nbins,xmin,xmax)" or just "branch"
+    const hasRange = xmin !== undefined && xmax !== undefined;
+    const expr = hasRange ? `${branch} >> h(${bins},${xmin},${xmax})` : branch;
+
+    let hist: any;
+    try {
+      hist = await treeDraw(tree, { expr, cut });
+    } catch (err: any) {
+      throw new Error(`Failed to histogram branch "${branch}" in tree "${treeName}": ${err?.message ?? err}`);
+    }
+
+    if (!hist) {
+      throw new Error(`treeDraw returned no histogram for branch "${branch}"`);
+    }
+
+    const nbins: number = hist.fXaxis.fNbins;
+    const actualXmin: number = hist.fXaxis.fXmin;
+    const actualXmax: number = hist.fXaxis.fXmax;
+
+    // Compute evenly-spaced bin edges (nbins+1 values)
+    const edges: number[] = [];
+    const binWidth = (actualXmax - actualXmin) / nbins;
+    for (let i = 0; i <= nbins; i++) {
+      edges.push(actualXmin + i * binWidth);
+    }
+
+    // fArray: [0]=underflow, [1..nbins]=bins, [nbins+1]=overflow
+    const fArray: number[] = Array.from(hist.fArray as ArrayLike<number>);
+    const underflow = fArray[0] ?? 0;
+    const overflow = fArray[nbins + 1] ?? 0;
+    const counts = fArray.slice(1, nbins + 1);
+
+    // Derive mean and stddev from running sums stored in the histogram
+    const sumw: number = hist.fTsumw ?? 0;
+    const sumwx: number = hist.fTsumwx ?? 0;
+    const sumwx2: number = hist.fTsumwx2 ?? 0;
+    const mean = sumw > 0 ? sumwx / sumw : 0;
+    const variance = sumw > 0 ? sumwx2 / sumw - mean * mean : 0;
+    const stddev = Math.sqrt(Math.max(0, variance));
+
+    const result: HistogramResult = {
+      file: remotePath,
+      tree: treeName,
+      branch,
+      bins: nbins,
+      xmin: actualXmin,
+      xmax: actualXmax,
+      edges,
+      counts,
+      underflow,
+      overflow,
+      entries: sumw,
+      mean,
+      stddev,
+    };
+    if (cut !== undefined) {
+      result.cut = cut;
+    }
+    return result;
   }
 }
