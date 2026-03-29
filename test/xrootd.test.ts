@@ -358,6 +358,30 @@ describe('XRootD MCP Server Integration Tests', () => {
       }
     });
   });
+
+  describe('xrdcp URL Construction', () => {
+    // Verify that read_file (which uses xrdcp) builds absolute XRootD URLs
+    // with the required double-slash separator (root://host//path).  Without
+    // the double slash, XRootD treats the path as relative and returns [3010].
+    it('should not produce a relative-path error when reading a file', async () => {
+      const result: any = await client.callTool({
+        name: 'read_file',
+        arguments: { path: `${TEST_BASE_DIR}/nonexistent-test-file.root` },
+      });
+      assert.ok(result.content);
+      assert.ok(result.content.length > 0);
+      // Any error must be an xrootd "not found" style error, never [3010]
+      // "Opening relative path … is disallowed", which indicates a missing '//'
+      // separator in the constructed URL.
+      if (result.isError) {
+        const errorText: string = result.content[0].text;
+        assert.ok(
+          !errorText.includes('relative path') && !errorText.includes('[3010]'),
+          `Unexpected relative-path error — double-slash separator missing: ${errorText}`
+        );
+      }
+    });
+  });
 });
 
 describe('Large Directory Event Counting', () => {

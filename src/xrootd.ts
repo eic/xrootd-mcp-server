@@ -132,7 +132,12 @@ export class XRootDClient {
 
   private getFullPath(path: string): string {
     const resolvedPath = this.resolvePath(path);
-    return `${this.serverUrl}${encodeXRootDPath(resolvedPath)}`;
+    // Ensure serverUrl has no trailing slashes so that the separator between
+    // the host and path is always exactly '//' (e.g. root://host//path),
+    // regardless of how serverUrl was configured.
+    const normalizedServerUrl = this.serverUrl.replace(/\/+$/, '');
+    const encodedPath = encodeXRootDPath(resolvedPath);
+    return `${normalizedServerUrl}/${encodedPath}`;
   }
 
   async listDirectory(path: string, useCache: boolean = true, limit?: number): Promise<DirectoryEntry[]> {
