@@ -12,6 +12,20 @@ function encodeXRootDPath(path: string): string {
   return path.split('/').map(segment => encodeURIComponent(segment)).join('/');
 }
 
+// Convert a glob pattern to a RegExp.  All regex metacharacters in the input
+// are escaped so they are treated as literals; only the glob wildcards '*' and
+// '?' retain special meaning (mapping to '.*' and '.' respectively).
+export function globToRegex(glob: string): RegExp {
+  const escapeRegex = (s: string): string =>
+    s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  const escapedGlob = escapeRegex(glob)
+    .replace(/\\\*/g, '.*')  // escaped '*' becomes regex '.*'
+    .replace(/\\\?/g, '.');  // escaped '?' becomes regex '.'
+
+  return new RegExp(`^${escapedGlob}$`);
+}
+
 export interface FileInfo {
   path: string;
   size: number;
@@ -331,16 +345,7 @@ export class XRootDClient {
   }
 
   private globToRegex(glob: string): RegExp {
-    // Escape all regex metacharacters so the glob is treated literally,
-    // then translate glob wildcards '*' and '?' to their regex equivalents.
-    const escapeRegex = (s: string): string =>
-      s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-    const escapedGlob = escapeRegex(glob)
-      .replace(/\\\*/g, '.*')  // escaped '*' becomes regex '.*'
-      .replace(/\\\?/g, '.');  // escaped '?' becomes regex '.'
-
-    return new RegExp(`^${escapedGlob}$`);
+    return globToRegex(glob);
   }
 
   // Get directory statistics
