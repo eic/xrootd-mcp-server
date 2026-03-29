@@ -608,6 +608,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const path = String(args.path);
         const limit = args.limit !== undefined ? Number(args.limit) : 1000;
         const offset = args.offset !== undefined ? Number(args.offset) : 0;
+
+        if (!Number.isFinite(limit) || !Number.isInteger(limit) || limit < 1) {
+          throw new Error('Invalid "limit" parameter: must be a positive integer.');
+        }
+        if (!Number.isFinite(offset) || !Number.isInteger(offset) || offset < 0) {
+          throw new Error('Invalid "offset" parameter: must be a non-negative integer.');
+        }
+
         const allEntries = await client.listDirectory(path);
         const page = allEntries.slice(offset, offset + limit);
         const hasMore = offset + page.length < allEntries.length;

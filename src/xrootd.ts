@@ -122,6 +122,9 @@ export class XRootDClient {
   }
 
   async listDirectory(path: string, useCache: boolean = true, limit?: number): Promise<DirectoryEntry[]> {
+    if (limit !== undefined && (!Number.isFinite(limit) || !Number.isInteger(limit) || limit < 1)) {
+      throw new Error('Invalid "limit" parameter: must be a positive integer.');
+    }
     const resolvedPath = this.resolvePath(path);
     // Respect the global enableCache setting in addition to the per-call useCache flag
     const shouldUseCache = this.enableCache && useCache;
