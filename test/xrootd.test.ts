@@ -105,7 +105,8 @@ describe('XRootD MCP Server Integration Tests', () => {
       assert.ok(result.content);
       assert.ok(result.content.length > 0);
       const firstContent = result.content[0];
-      const text = firstContent.type === 'text' ? firstContent.text : '';
+      assert.strictEqual(firstContent.type, 'text', 'get_file_info should return text content');
+      const text = firstContent.text;
       
       // Handle case where the tool returns an error message
       if (text.startsWith('Error:')) {

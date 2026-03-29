@@ -7,8 +7,7 @@ const XROOTD_SERVER = process.env.XROOTD_SERVER || 'root://dtn-eic.jlab.org';
 const TEST_ROOT_FILE = process.env.TEST_ROOT_FILE || '/work/eic2/EPIC/RECO/24.07.0/epic_craterlake/DIS/NC/18x275/q2_0.001_1.0/pythia8NCDIS_18x275_minQ2=0.001_beamEffects_xAngle=-0.025_hiDiv_1.0000.eicrecon.tree.edm4eic.root';
 
 function isCopyRequiredError(error: unknown): error is CopyRequiredError {
-  return error instanceof CopyRequiredError ||
-    (typeof error === 'object' && error !== null && 'name' in error && (error as { name: unknown }).name === 'CopyRequiredError');
+  return error instanceof CopyRequiredError;
 }
 
 describe('ROOT File Analysis', () => {
