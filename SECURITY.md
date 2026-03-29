@@ -8,7 +8,9 @@ If you believe you have found a security vulnerability in this project, please r
 
 1. **GitHub Private Vulnerability Reporting** – Use the [Report a vulnerability](https://github.com/eic/xrootd-mcp-server/security/advisories/new) button on the Security tab of this repository. This is the preferred method.
 
-2. **EIC Organization Admins** – Contact the [EIC GitHub Admins team](https://github.com/orgs/eic/teams/admins) directly for further escalation if needed.
+2. **Email** – If you cannot use GitHub Private Vulnerability Reporting, contact us at [eic-projdet-compsw-l-request@lists.bnl.gov](mailto:eic-projdet-compsw-l-request@lists.bnl.gov) with the details described below.
+
+3. **EIC Organization Admins (for EIC members only)** – If you are a member of the EIC GitHub organization, you may also contact the [EIC GitHub Admins team](https://github.com/orgs/eic/teams/admins) for further escalation if needed.
 
 ## What to Include
 
