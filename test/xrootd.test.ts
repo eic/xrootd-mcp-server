@@ -358,7 +358,7 @@ describe('XRootD MCP Server Integration Tests', () => {
     it('should not produce a relative-path error when reading a file', async () => {
       const result: any = await client.callTool({
         name: 'read_file',
-        arguments: { path: '/nonexistent-test-file.root' },
+        arguments: { path: `${TEST_BASE_DIR}/nonexistent-test-file.root` },
       });
       assert.ok(result.content);
       assert.ok(result.content.length > 0);
