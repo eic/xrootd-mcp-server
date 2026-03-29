@@ -2,21 +2,10 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import type { Tool } from '@modelcontextprotocol/sdk/types.js';
+import type { Tool, CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
 const TEST_SERVER = process.env.XROOTD_SERVER || 'root://dtn-eic.jlab.org';
 const TEST_BASE_DIR = process.env.XROOTD_BASE_DIR || '/volatile/eic/EPIC';
-
-interface ToolContentItem {
-  type: string;
-  text?: string;
-  [key: string]: unknown;
-}
-
-interface ToolCallResult {
-  content: ToolContentItem[];
-  [key: string]: unknown;
-}
 
 describe('XRootD MCP Server Integration Tests', () => {
   let client: Client;
@@ -75,7 +64,7 @@ describe('XRootD MCP Server Integration Tests', () => {
       const result = await client.callTool({
         name: 'list_directory',
         arguments: { path: '/' },
-      }) as unknown as ToolCallResult;
+      }) as CallToolResult;
       
       assert.ok(result.content);
       assert.ok(Array.isArray(result.content));
@@ -232,13 +221,13 @@ describe('XRootD MCP Server Integration Tests', () => {
 
   describe('Recent Files', () => {
     it('should list files modified recently', async () => {
-      const result: any = await client.callTool({
+      const result = await client.callTool({
         name: 'find_recent_files',
         arguments: {
           path: '/',
           hours: 168, // 7 days
         },
-      });
+      }) as CallToolResult;
       
       assert.ok(result.content);
       assert.ok(result.content.length > 0);
@@ -250,7 +239,7 @@ describe('XRootD MCP Server Integration Tests', () => {
       const tools = await client.listTools();
       const hasExtractMetadata = (tools.tools as Tool[])?.some(tool => tool.name === 'extract_metadata');
       if (!hasExtractMetadata) {
-        console.log("  ⊘ 'extract_metadata' tool not registered on server; skipping metadata extraction test");
+        console.log('  ⊘ \'extract_metadata\' tool not registered on server; skipping metadata extraction test');
         return;
       }
 
@@ -259,7 +248,7 @@ describe('XRootD MCP Server Integration Tests', () => {
         arguments: {
           path: 'EVGEN/SIDIS/pythia8NCDIS_18x275_Q2_1_10_y_0.01_0.95_tau-_00001.0000.eicrecon.tree.edm4eic.root',
         },
-      }) as unknown as ToolCallResult;
+      }) as CallToolResult;
       
       assert.ok(result.content);
       assert.ok(result.content.length > 0);
