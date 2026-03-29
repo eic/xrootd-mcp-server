@@ -358,19 +358,19 @@ describe('XRootD MCP Server Integration Tests', () => {
     it('should not percent-encode "=" in paths passed to xrdcp', async () => {
       const result: any = await client.callTool({
         name: 'read_file',
-        arguments: { path: '/RECO/26.03.0/epic_craterlake/DIS/NC/10x100/minQ2=1/nonexistent.root' },
+        arguments: { path: 'RECO/26.03.0/epic_craterlake/DIS/NC/10x100/minQ2=1/nonexistent.root' },
       });
       assert.ok(result.content);
       assert.ok(result.content.length > 0);
+      // The file is intentionally nonexistent so the response must be an error.
+      assert.strictEqual(result.isError, true, 'Expected an error response for a nonexistent file');
       // If '=' is incorrectly encoded to '%3D' the xrdcp URL will contain
       // that sequence, and the error message echoes the URL back.
-      if (result.isError) {
-        const errorText: string = result.content[0].text;
-        assert.ok(
-          !errorText.includes('%3D') && !errorText.includes('%3d'),
-          `'=' in path was incorrectly percent-encoded — encodeXRootDPath is too aggressive: ${errorText}`
-        );
-      }
+      const errorText: string = result.content[0].text;
+      assert.ok(
+        !errorText.includes('%3D') && !errorText.includes('%3d'),
+        `'=' in path was incorrectly percent-encoded — encodeXRootDPath is too aggressive: ${errorText}`
+      );
     });
   });
 });

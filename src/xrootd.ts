@@ -6,7 +6,7 @@ const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
 
 // Percent-encode only characters that would be misinterpreted by XRootD's URL
-// parser when embedding a path in an xrdcp URL.  Only '?', '#', and '%' itself
+// parser when embedding a path in an xrdcp URL.  Only '?', '#', '%', and spaces
 // need encoding in path segments; characters like '=', '+', '-' are safe and
 // must NOT be encoded (e.g. "minQ2=1" or "xAngle=-0.025" in directory names).
 function encodeXRootDPath(path: string): string {
