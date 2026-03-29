@@ -121,7 +121,7 @@ export class XRootDClient {
     return `${this.serverUrl}${encodeXRootDPath(resolvedPath)}`;
   }
 
-  async listDirectory(path: string, useCache: boolean = true): Promise<DirectoryEntry[]> {
+  async listDirectory(path: string, useCache: boolean = true, limit?: number): Promise<DirectoryEntry[]> {
     const resolvedPath = this.resolvePath(path);
     // Respect the global enableCache setting in addition to the per-call useCache flag
     const shouldUseCache = this.enableCache && useCache;
@@ -130,7 +130,7 @@ export class XRootDClient {
     if (shouldUseCache) {
       const cached = this.cache.get(resolvedPath);
       if (cached) {
-        return cached;
+        return limit !== undefined ? cached.slice(0, limit) : cached;
       }
     }
     
@@ -171,7 +171,7 @@ export class XRootDClient {
         this.cache.set(resolvedPath, entries);
       }
       
-      return entries;
+      return limit !== undefined ? entries.slice(0, limit) : entries;
     } catch (error: any) {
       throw new Error(`Failed to list directory ${path}: ${error.message}`);
     }

@@ -352,6 +352,145 @@ describe('XRootD MCP Server Integration Tests', () => {
   });
 });
 
+describe('Large Directory Event Counting', () => {
+  // Reproduce the scenario where an LLM hits context limits due to a large number
+  // of files in a directory and then wants to count events in the first file.
+  // Directory: RECO/26.03.0/epic_craterlake/DIS/NC/10x100/minQ2=1
+  let largeClient: Client;
+  let largeTransport: StdioClientTransport;
+
+  const LARGE_DIR = 'RECO/26.03.0/epic_craterlake/DIS/NC/10x100/minQ2=1';
+  // This is an EIC production directory on dtn-eic.jlab.org that contains hundreds
+  // of ROOT files. Tests gracefully skip when the server or path is not accessible.
+
+  before(async () => {
+    largeTransport = new StdioClientTransport({
+      command: process.execPath,
+      args: ['build/src/index.js'],
+      env: {
+        ...process.env,
+        XROOTD_SERVER: TEST_SERVER,
+        XROOTD_BASE_DIR: TEST_BASE_DIR,
+      },
+    });
+
+    largeClient = new Client(
+      { name: 'xrootd-large-dir-test-client', version: '1.0.0' },
+      { capabilities: {} }
+    );
+
+    await largeClient.connect(largeTransport);
+  });
+
+  after(async () => {
+    await largeClient.close();
+  });
+
+  it('should list large directory without limit and expose total entry count', { timeout: 60000 }, async () => {
+    const result: any = await largeClient.callTool({
+      name: 'list_directory',
+      arguments: { path: LARGE_DIR },
+    });
+
+    assert.ok(result.content);
+    assert.ok(result.content.length > 0);
+
+    if (result.isError) {
+      console.error('  ⊘ Skipping - directory not accessible:', result.content[0].text);
+      return;
+    }
+
+    const body = JSON.parse(result.content[0].text);
+    assert.ok(typeof body.totalEntries === 'number', 'totalEntries should be a number');
+    assert.ok(body.totalEntries > 0, 'Directory should contain at least one entry');
+    assert.ok(Array.isArray(body.entries), 'entries should be an array');
+    assert.equal(body.entries.length, body.totalEntries, 'All entries returned when no limit is set');
+
+    console.error(`  ✓ Directory ${LARGE_DIR} contains ${body.totalEntries} entries`);
+  });
+
+  it('should list large directory with limit=1 to avoid context overflow', { timeout: 60000 }, async () => {
+    const result: any = await largeClient.callTool({
+      name: 'list_directory',
+      arguments: { path: LARGE_DIR, limit: 1 },
+    });
+
+    assert.ok(result.content);
+    assert.ok(result.content.length > 0);
+
+    if (result.isError) {
+      console.error('  ⊘ Skipping - directory not accessible:', result.content[0].text);
+      return;
+    }
+
+    const body = JSON.parse(result.content[0].text);
+    assert.ok(typeof body.totalEntries === 'number', 'totalEntries should be a number');
+    assert.equal(body.returnedEntries, 1, 'Only 1 entry should be returned');
+    assert.equal(body.entries.length, 1, 'entries array should have exactly 1 element');
+
+    // If the directory has more than 1 file, it must be marked as truncated
+    if (body.totalEntries > 1) {
+      assert.equal(body.truncated, true, 'truncated flag should be set when entries are omitted');
+      assert.ok(typeof body.note === 'string', 'A note should explain truncation');
+    }
+
+    console.error(`  ✓ limit=1 returned 1 of ${body.totalEntries} entries (truncated: ${body.truncated ?? false})`);
+    console.error(`  ✓ First entry: ${body.entries[0].name}`);
+  });
+
+  it('should count events in the first ROOT file of the large directory', { timeout: 120000 }, async () => {
+    // Step 1: get just the first entry from the large directory
+    const listResult: any = await largeClient.callTool({
+      name: 'list_directory',
+      arguments: { path: LARGE_DIR, limit: 1 },
+    });
+
+    assert.ok(listResult.content);
+
+    if (listResult.isError) {
+      console.error('  ⊘ Skipping - directory not accessible:', listResult.content[0].text);
+      return;
+    }
+
+    const listBody = JSON.parse(listResult.content[0].text);
+
+    if (listBody.entries.length === 0) {
+      console.error('  ⊘ Skipping - directory is empty');
+      return;
+    }
+
+    const firstEntry = listBody.entries[0];
+    if (!firstEntry.name.endsWith('.root')) {
+      console.error(`  ⊘ Skipping - first entry is not a ROOT file: ${firstEntry.name}`);
+      return;
+    }
+
+    const firstFilePath = `${LARGE_DIR}/${firstEntry.name}`;
+
+    // Step 2: count events in the first file
+    const statsResult: any = await largeClient.callTool({
+      name: 'get_event_statistics',
+      arguments: { path: firstFilePath },
+    });
+
+    assert.ok(statsResult.content);
+
+    if (statsResult.isError) {
+      // ROOT analysis may not be available in all environments; treat gracefully
+      console.error('  ⊘ Skipping - could not read ROOT file:', statsResult.content[0].text);
+      return;
+    }
+
+    const stats = JSON.parse(statsResult.content[0].text);
+    assert.ok(typeof stats.totalEvents === 'number', 'totalEvents should be a number');
+    assert.ok(stats.totalEvents >= 0, 'totalEvents should be non-negative');
+
+    console.error(`  ✓ Directory: ${LARGE_DIR}`);
+    console.error(`  ✓ First file: ${firstEntry.name}`);
+    console.error(`  ✓ Events in first file: ${stats.totalEvents}`);
+  });
+});
+
 describe('Multi-Server Configuration Tests', () => {
   let multiClient: Client;
   let multiTransport: StdioClientTransport;

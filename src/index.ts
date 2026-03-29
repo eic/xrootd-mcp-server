@@ -231,6 +231,10 @@ const tools: Tool[] = [
           type: 'string',
           description: 'Path to the directory to list',
         },
+        limit: {
+          type: 'number',
+          description: 'Maximum number of entries to return. Use this for large directories to avoid overwhelming context with thousands of filenames.',
+        },
         server: {
           type: 'string',
           description: 'Name of the XRootD server to use (default: first configured server)',
@@ -598,13 +602,25 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'list_directory': {
         const { client } = getClient(args.server ? String(args.server) : undefined);
         const path = String(args.path);
-        const entries = await client.listDirectory(path);
+        const limit = args.limit !== undefined ? Number(args.limit) : undefined;
+        const allEntries = await client.listDirectory(path);
+        const entries = limit !== undefined ? allEntries.slice(0, limit) : allEntries;
+        
+        const responseBody: Record<string, unknown> = {
+          totalEntries: allEntries.length,
+          returnedEntries: entries.length,
+          entries,
+        };
+        if (limit !== undefined && allEntries.length > limit) {
+          responseBody.truncated = true;
+          responseBody.note = `Showing first ${limit} of ${allEntries.length} entries. Increase 'limit' or use 'list_directory_filtered' to retrieve specific entries.`;
+        }
         
         return {
           content: [
             {
               type: 'text',
-              text: JSON.stringify(entries, null, 2),
+              text: JSON.stringify(responseBody, null, 2),
             },
           ],
         };
