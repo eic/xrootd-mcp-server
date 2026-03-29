@@ -6,6 +6,11 @@ import { ROOTAnalyzer, CopyRequiredError } from '../src/root-analysis.js';
 const XROOTD_SERVER = process.env.XROOTD_SERVER || 'root://dtn-eic.jlab.org';
 const TEST_ROOT_FILE = process.env.TEST_ROOT_FILE || '/work/eic2/EPIC/RECO/24.07.0/epic_craterlake/DIS/NC/18x275/q2_0.001_1.0/pythia8NCDIS_18x275_minQ2=0.001_beamEffects_xAngle=-0.025_hiDiv_1.0000.eicrecon.tree.edm4eic.root';
 
+function isCopyRequiredError(error: unknown): error is CopyRequiredError {
+  return error instanceof CopyRequiredError ||
+    (typeof error === 'object' && error !== null && 'name' in error && (error as { name: unknown }).name === 'CopyRequiredError');
+}
+
 describe('ROOT File Analysis', () => {
   let client: XRootDClient;
   let analyzer: ROOTAnalyzer;
@@ -31,9 +36,9 @@ describe('ROOT File Analysis', () => {
       console.error(`  ✓ Keys found: ${structure.keys.length}`);
       console.error(`  ✓ Trees found: ${structure.trees.length}`);
       console.error(`  ✓ Directories found: ${structure.directories.length}`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Skip test if file doesn't exist
-      if (error.message.includes('Failed to read file')) {
+      if (error instanceof Error && error.message.includes('Failed to read file')) {
         console.error('  ⊘ Skipping - test file not accessible');
         return;
       }
@@ -54,8 +59,8 @@ describe('ROOT File Analysis', () => {
       if (metadataKeys.length > 0) {
         console.error(`  ✓ Sample keys: ${metadataKeys.slice(0, 3).join(', ')}`);
       }
-    } catch (error: any) {
-      if (error.message.includes('Failed to read file')) {
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message.includes('Failed to read file')) {
         console.error('  ⊘ Skipping - test file not accessible');
         return;
       }
@@ -83,8 +88,8 @@ describe('ROOT File Analysis', () => {
         console.error(`    - Total size: ${firstCollection.totalSize} bytes`);
         console.error(`    - Compression factor: ${firstCollection.compressionFactor.toFixed(2)}`);
       }
-    } catch (error: any) {
-      if (error.message.includes('Failed to read file')) {
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message.includes('Failed to read file')) {
         console.error('  ⊘ Skipping - test file not accessible');
         return;
       }
@@ -120,9 +125,12 @@ describe('ROOT File Analysis', () => {
       console.error(`  ✓ Analyzed ${limitedFiles.length} file(s)`);
       console.error(`  ✓ Total events in first file: ${stats.totalEvents}`);
       console.error(`  ✓ Collections: ${Object.keys(stats.collectionStats).length}`);
-    } catch (error: any) {
-      if (error.message.includes('Failed to read file') || 
-          error.message.includes('Failed to list directory')) {
+    } catch (error: unknown) {
+      if (
+        error instanceof Error &&
+        (error.message.includes('Failed to read file') ||
+          error.message.includes('Failed to list directory'))
+      ) {
         console.error('  ⊘ Skipping - test dataset not accessible');
         return;
       }
@@ -182,19 +190,19 @@ describe('HTTP Fallback Behavior', () => {
     try {
       await unreachableAnalyzer.analyzeFile('/nonexistent.root', false);
       assert.fail('Expected CopyRequiredError to be thrown');
-    } catch (error: any) {
+    } catch (error: unknown) {
       assert.ok(
-        error instanceof CopyRequiredError || error.name === 'CopyRequiredError',
-        `Expected CopyRequiredError but got ${error.name}: ${error.message}`
+        isCopyRequiredError(error),
+        `Expected CopyRequiredError but got ${error instanceof Error ? error.name : String(error)}: ${error instanceof Error ? error.message : String(error)}`
       );
       assert.ok(
-        error.message.includes('allow_copy: true'),
+        error instanceof CopyRequiredError && error.message.includes('allow_copy: true'),
         'Error message should contain guidance on using allow_copy: true'
       );
-      assert.ok(error.httpUrl, 'CopyRequiredError should include the attempted HTTP URL');
+      assert.ok(error instanceof CopyRequiredError && error.httpUrl, 'CopyRequiredError should include the attempted HTTP URL');
       assert.ok(
-        error.httpUrl.startsWith('https://'),
-        `HTTP URL should start with https://, got: ${error.httpUrl}`
+        error instanceof CopyRequiredError && error.httpUrl.startsWith('https://'),
+        `HTTP URL should start with https://, got: ${error instanceof CopyRequiredError ? error.httpUrl : String(error)}`
       );
     }
   });
@@ -204,10 +212,10 @@ describe('HTTP Fallback Behavior', () => {
       try {
         await unreachableAnalyzer[methodName]('/nonexistent.root', false);
         assert.fail(`Expected CopyRequiredError from ${methodName}`);
-      } catch (error: any) {
+      } catch (error: unknown) {
         assert.ok(
-          error instanceof CopyRequiredError || error.name === 'CopyRequiredError',
-          `${methodName}: Expected CopyRequiredError but got ${error.name}: ${error.message}`
+          isCopyRequiredError(error),
+          `${methodName}: Expected CopyRequiredError but got ${error instanceof Error ? error.name : String(error)}: ${error instanceof Error ? error.message : String(error)}`
         );
       }
     }
@@ -220,14 +228,14 @@ describe('HTTP Fallback Behavior', () => {
     try {
       await unreachableAnalyzer.analyzeFile('/nonexistent.root', true);
       // If this somehow succeeds, that's also fine.
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Must NOT be CopyRequiredError – the code should have attempted xrdcp
       assert.ok(
-        !(error instanceof CopyRequiredError) && error.name !== 'CopyRequiredError',
-        `Should not get CopyRequiredError with allow_copy=true, but got: ${error.message}`
+        !isCopyRequiredError(error),
+        `Should not get CopyRequiredError with allow_copy=true, but got: ${error instanceof Error ? error.message : String(error)}`
       );
       // The xrdcp failure (file not found / connection refused) is expected
-      console.error(`  ✓ xrdcp fallback attempted (failed as expected: ${error.message.slice(0, 80)})`);
+      console.error(`  ✓ xrdcp fallback attempted (failed as expected: ${error instanceof Error ? error.message.slice(0, 80) : String(error)})`);
     }
   });
 
@@ -235,13 +243,13 @@ describe('HTTP Fallback Behavior', () => {
     try {
       await unreachableAnalyzer.histogramBranch('/nonexistent.root', 'x', 'events', 100, undefined, undefined, undefined, false);
       assert.fail('Expected CopyRequiredError to be thrown');
-    } catch (error: any) {
+    } catch (error: unknown) {
       assert.ok(
-        error instanceof CopyRequiredError || error.name === 'CopyRequiredError',
-        `Expected CopyRequiredError but got ${error.name}: ${error.message}`
+        isCopyRequiredError(error),
+        `Expected CopyRequiredError but got ${error instanceof Error ? error.name : String(error)}: ${error instanceof Error ? error.message : String(error)}`
       );
       assert.ok(
-        error.message.includes('allow_copy: true'),
+        error instanceof CopyRequiredError && error.message.includes('allow_copy: true'),
         'Error message should contain guidance on using allow_copy: true'
       );
     }
