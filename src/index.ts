@@ -24,18 +24,112 @@ interface ServerEntry {
   rootAnalyzer: ROOTAnalyzer;
 }
 
+// Safe XRootD URL pattern: root://host[:port][/] with no whitespace or shell metacharacters
+// Supports IPv4 hostnames and IPv6 addresses in brackets (e.g., root://[::1]:1094)
+const SAFE_XROOTD_URL_RE = /^root:\/\/(\[[0-9a-fA-F:]+\]|[A-Za-z0-9._\-]+)(:\d+)?\/?$/;
+
+function validateServerUrl(url: string, serverName: string): void {
+  if (!SAFE_XROOTD_URL_RE.test(url)) {
+    console.error(
+      `Error: Server "${serverName}" has an invalid or unsafe URL "${url}". ` +
+      `URL must match root://host[:port] with no whitespace or shell metacharacters.`
+    );
+    process.exit(1);
+  }
+}
+
+function normalizeCacheEnabled(rawValue: unknown, defaultValue: boolean): boolean {
+  if (typeof rawValue === 'boolean') {
+    return rawValue;
+  }
+  if (typeof rawValue === 'string') {
+    const v = rawValue.trim().toLowerCase();
+    if (v === 'false' || v === '0' || v === 'no' || v === 'off' || v === '') {
+      return false;
+    }
+    if (v === 'true' || v === '1' || v === 'yes' || v === 'on') {
+      return true;
+    }
+    return defaultValue;
+  }
+  if (typeof rawValue === 'number') {
+    return rawValue !== 0;
+  }
+  if (rawValue == null) {
+    return defaultValue;
+  }
+  return defaultValue;
+}
+
+function normalizeNonNegativeInt(
+  rawValue: unknown,
+  defaultValue: number,
+  fieldName: string,
+  serverName: string
+): number {
+  let num: number | undefined;
+  if (typeof rawValue === 'number') {
+    if (Number.isInteger(rawValue)) {
+      num = rawValue;
+    }
+  } else if (typeof rawValue === 'string') {
+    const trimmed = rawValue.trim();
+    if (trimmed !== '' && /^\d+$/.test(trimmed)) {
+      const parsed = Number(trimmed);
+      if (Number.isInteger(parsed)) {
+        num = parsed;
+      }
+    }
+  }
+
+  if (num == null || !Number.isFinite(num) || Number.isNaN(num) || num < 0) {
+    if (rawValue !== undefined && rawValue !== null) {
+      console.warn(
+        `Warning: invalid value for ${fieldName} on server "${serverName}", using default ${defaultValue}`
+      );
+    }
+    return defaultValue;
+  }
+
+  return num;
+}
+
 function buildServerConfigs(): ServerConfig[] {
   const XROOTD_SERVERS = process.env.XROOTD_SERVERS;
   const XROOTD_SERVER = process.env.XROOTD_SERVER;
 
   if (XROOTD_SERVERS) {
     try {
-      const configs = JSON.parse(XROOTD_SERVERS) as ServerConfig[];
+      const configs = JSON.parse(XROOTD_SERVERS) as unknown[];
       if (!Array.isArray(configs) || configs.length === 0) {
         console.error('Error: XROOTD_SERVERS must be a non-empty JSON array');
         process.exit(1);
       }
-      return configs;
+      const seenNames = new Set<string>();
+      configs.forEach((config, index) => {
+        if (config === null || typeof config !== 'object') {
+          console.error(`Error: XROOTD_SERVERS[${index}] must be an object`);
+          process.exit(1);
+        }
+        const rawName = (config as ServerConfig).name;
+        const url = (config as ServerConfig).url;
+        if (typeof rawName !== 'string' || rawName.trim().length === 0) {
+          console.error(`Error: XROOTD_SERVERS[${index}].name must be a non-empty string`);
+          process.exit(1);
+        }
+        const name = rawName.trim();
+        (config as ServerConfig).name = name;
+        if (typeof url !== 'string' || url.trim().length === 0) {
+          console.error(`Error: XROOTD_SERVERS[${index}].url must be a non-empty string`);
+          process.exit(1);
+        }
+        if (seenNames.has(name)) {
+          console.error(`Error: Duplicate server name '${name}' found in XROOTD_SERVERS at index ${index}`);
+          process.exit(1);
+        }
+        seenNames.add(name);
+      });
+      return configs as ServerConfig[];
     } catch (e) {
       console.error('Error: XROOTD_SERVERS is not valid JSON:', e);
       process.exit(1);
@@ -63,12 +157,30 @@ const serverConfigs = buildServerConfigs();
 
 const servers = new Map<string, ServerEntry>();
 for (const cfg of serverConfigs) {
+  validateServerUrl(cfg.url, cfg.name);
+  const anyCfg = cfg as any;
+  const cacheEnabled = normalizeCacheEnabled(anyCfg.cacheEnabled, true);
+  const cacheTTL = normalizeNonNegativeInt(anyCfg.cacheTTL, 60, 'cacheTTL', cfg.name);
+  const cacheMaxSize = normalizeNonNegativeInt(anyCfg.cacheMaxSize, 1000, 'cacheMaxSize', cfg.name);
+  const rawBaseDir = anyCfg.baseDir;
+  let baseDir: string;
+  if (rawBaseDir === undefined || rawBaseDir === null) {
+    baseDir = '/';
+  } else if (typeof rawBaseDir === 'string') {
+    baseDir = rawBaseDir;
+  } else {
+    console.error(
+      `Error: Invalid baseDir for server "${cfg.name}": expected string or undefined, got ${typeof rawBaseDir}`
+    );
+    process.exit(1);
+    baseDir = '/'; // unreachable; satisfies TypeScript control-flow analysis
+  }
   const client = new XRootDClient(
     cfg.url,
-    cfg.baseDir ?? '/',
-    cfg.cacheEnabled ?? true,
-    cfg.cacheTTL ?? 60,
-    cfg.cacheMaxSize ?? 1000
+    baseDir,
+    cacheEnabled,
+    cacheTTL,
+    cacheMaxSize
   );
   servers.set(cfg.name, { client, rootAnalyzer: new ROOTAnalyzer(client) });
 }
@@ -118,6 +230,14 @@ const tools: Tool[] = [
         path: {
           type: 'string',
           description: 'Path to the directory to list',
+        },
+        limit: {
+          type: 'number',
+          description: 'Maximum number of entries per page (default: 1000). Use with offset for pagination through large directories.',
+        },
+        offset: {
+          type: 'number',
+          description: 'Starting index for pagination (default: 0). Use with limit to retrieve subsequent pages.',
         },
         server: {
           type: 'string',
@@ -467,11 +587,9 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 });
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
-
-  if (!args) {
-    throw new Error('Missing arguments');
-  }
+  const { name } = request.params;
+  // list_servers takes no parameters so clients may omit arguments; default to {}
+  const args = request.params.arguments ?? {};
 
   try {
     switch (name) {
@@ -488,13 +606,38 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'list_directory': {
         const { client } = getClient(args.server ? String(args.server) : undefined);
         const path = String(args.path);
-        const entries = await client.listDirectory(path);
-        
+        const limit = args.limit !== undefined ? Number(args.limit) : 1000;
+        const offset = args.offset !== undefined ? Number(args.offset) : 0;
+
+        if (!Number.isFinite(limit) || !Number.isInteger(limit) || limit < 1) {
+          throw new Error('Invalid "limit" parameter: must be a positive integer.');
+        }
+        if (!Number.isFinite(offset) || !Number.isInteger(offset) || offset < 0) {
+          throw new Error('Invalid "offset" parameter: must be a non-negative integer.');
+        }
+
+        const allEntries = await client.listDirectory(path);
+        const page = allEntries.slice(offset, offset + limit);
+        const hasMore = offset + page.length < allEntries.length;
+
+        const responseBody: Record<string, unknown> = {
+          totalEntries: allEntries.length,
+          offset,
+          limit,
+          returnedEntries: page.length,
+          hasMore,
+          entries: page,
+        };
+        if (hasMore) {
+          responseBody.nextOffset = offset + page.length;
+          responseBody.note = `Showing entries ${offset}–${offset + page.length - 1} of ${allEntries.length}. Use offset=${offset + page.length} to retrieve the next page.`;
+        }
+
         return {
           content: [
             {
               type: 'text',
-              text: JSON.stringify(entries, null, 2),
+              text: JSON.stringify(responseBody, null, 2),
             },
           ],
         };

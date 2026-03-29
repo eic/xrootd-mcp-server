@@ -19,6 +19,20 @@ function encodeXRootDPath(path: string): string {
   ).join('/');
 }
 
+// Convert a glob pattern to a RegExp.  All regex metacharacters in the input
+// are escaped so they are treated as literals; only the glob wildcards '*' and
+// '?' retain special meaning (mapping to '.*' and '.' respectively).
+export function globToRegex(glob: string): RegExp {
+  const escapeRegex = (s: string): string =>
+    s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  const escapedGlob = escapeRegex(glob)
+    .replace(/\\\*/g, '.*')  // escaped '*' becomes regex '.*'
+    .replace(/\\\?/g, '.');  // escaped '?' becomes regex '.'
+
+  return new RegExp(`^${escapedGlob}$`);
+}
+
 export interface FileInfo {
   path: string;
   size: number;
@@ -77,10 +91,12 @@ export class XRootDClient {
   private serverUrl: string;
   private baseDirectory: string;
   private cache: DirectoryCache;
+  private enableCache: boolean;
 
   constructor(serverUrl: string, baseDirectory: string = '/', enableCache: boolean = true, cacheTTLMinutes: number = 60, cacheMaxSize: number = 1000) {
     this.serverUrl = serverUrl.replace(/\/$/, '');
     this.baseDirectory = baseDirectory.replace(/\/$/, '') || '/';
+    this.enableCache = enableCache;
     this.cache = new DirectoryCache(cacheTTLMinutes, cacheMaxSize);
     
     if (enableCache) {
@@ -123,17 +139,27 @@ export class XRootDClient {
 
   private getFullPath(path: string): string {
     const resolvedPath = this.resolvePath(path);
-    return `${this.serverUrl}${encodeXRootDPath(resolvedPath)}`;
+    // Ensure serverUrl has no trailing slashes so that the separator between
+    // the host and path is always exactly '//' (e.g. root://host//path),
+    // regardless of how serverUrl was configured.
+    const normalizedServerUrl = this.serverUrl.replace(/\/+$/, '');
+    const encodedPath = encodeXRootDPath(resolvedPath);
+    return `${normalizedServerUrl}/${encodedPath}`;
   }
 
-  async listDirectory(path: string, useCache: boolean = true): Promise<DirectoryEntry[]> {
+  async listDirectory(path: string, useCache: boolean = true, limit?: number): Promise<DirectoryEntry[]> {
+    if (limit !== undefined && (!Number.isFinite(limit) || !Number.isInteger(limit) || limit < 1)) {
+      throw new Error('Invalid "limit" parameter: must be a positive integer.');
+    }
     const resolvedPath = this.resolvePath(path);
+    // Respect the global enableCache setting in addition to the per-call useCache flag
+    const shouldUseCache = this.enableCache && useCache;
     
     // Check cache first
-    if (useCache) {
+    if (shouldUseCache) {
       const cached = this.cache.get(resolvedPath);
       if (cached) {
-        return cached;
+        return limit !== undefined ? cached.slice(0, limit) : cached;
       }
     }
     
@@ -170,11 +196,11 @@ export class XRootDClient {
       }
       
       // Store in cache
-      if (useCache) {
+      if (shouldUseCache) {
         this.cache.set(resolvedPath, entries);
       }
       
-      return entries;
+      return limit !== undefined ? entries.slice(0, limit) : entries;
     } catch (error: any) {
       throw new Error(`Failed to list directory ${path}: ${error.message}`);
     }
@@ -334,11 +360,7 @@ export class XRootDClient {
   }
 
   private globToRegex(glob: string): RegExp {
-    const escaped = glob
-      .replace(/\./g, '\\.')
-      .replace(/\*/g, '.*')
-      .replace(/\?/g, '.');
-    return new RegExp(`^${escaped}$`);
+    return globToRegex(glob);
   }
 
   // Get directory statistics
