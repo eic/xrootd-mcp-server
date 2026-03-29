@@ -231,6 +231,14 @@ const tools: Tool[] = [
           type: 'string',
           description: 'Path to the directory to list',
         },
+        limit: {
+          type: 'number',
+          description: 'Maximum number of entries per page (default: 1000). Use with offset for pagination through large directories.',
+        },
+        offset: {
+          type: 'number',
+          description: 'Starting index for pagination (default: 0). Use with limit to retrieve subsequent pages.',
+        },
         server: {
           type: 'string',
           description: 'Name of the XRootD server to use (default: first configured server)',
@@ -598,13 +606,38 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'list_directory': {
         const { client } = getClient(args.server ? String(args.server) : undefined);
         const path = String(args.path);
-        const entries = await client.listDirectory(path);
-        
+        const limit = args.limit !== undefined ? Number(args.limit) : 1000;
+        const offset = args.offset !== undefined ? Number(args.offset) : 0;
+
+        if (!Number.isFinite(limit) || !Number.isInteger(limit) || limit < 1) {
+          throw new Error('Invalid "limit" parameter: must be a positive integer.');
+        }
+        if (!Number.isFinite(offset) || !Number.isInteger(offset) || offset < 0) {
+          throw new Error('Invalid "offset" parameter: must be a non-negative integer.');
+        }
+
+        const allEntries = await client.listDirectory(path);
+        const page = allEntries.slice(offset, offset + limit);
+        const hasMore = offset + page.length < allEntries.length;
+
+        const responseBody: Record<string, unknown> = {
+          totalEntries: allEntries.length,
+          offset,
+          limit,
+          returnedEntries: page.length,
+          hasMore,
+          entries: page,
+        };
+        if (hasMore) {
+          responseBody.nextOffset = offset + page.length;
+          responseBody.note = `Showing entries ${offset}–${offset + page.length - 1} of ${allEntries.length}. Use offset=${offset + page.length} to retrieve the next page.`;
+        }
+
         return {
           content: [
             {
               type: 'text',
-              text: JSON.stringify(entries, null, 2),
+              text: JSON.stringify(responseBody, null, 2),
             },
           ],
         };
