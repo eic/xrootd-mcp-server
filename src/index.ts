@@ -1087,9 +1087,24 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const path = String(args.path);
         const branch = String(args.branch);
         const tree = args.tree ? String(args.tree) : 'events';
-        const bins = args.bins !== undefined ? Math.round(Number(args.bins)) : 100;
-        const xmin = args.xmin !== undefined ? Number(args.xmin) : undefined;
-        const xmax = args.xmax !== undefined ? Number(args.xmax) : undefined;
+        const rawBins = args.bins !== undefined ? Number(args.bins) : 100;
+        const bins = Math.round(rawBins);
+        if (!Number.isFinite(bins) || bins < 1) {
+          throw new Error('Invalid "bins" parameter: must be a finite integer >= 1.');
+        }
+        const hasXmin = args.xmin !== undefined;
+        const hasXmax = args.xmax !== undefined;
+
+        if (hasXmin !== hasXmax) {
+          throw new Error('Both xmin and xmax must be provided together or both omitted.');
+        }
+
+        const xmin = hasXmin ? Number(args.xmin) : undefined;
+        const xmax = hasXmax ? Number(args.xmax) : undefined;
+
+        if (xmin !== undefined && xmax !== undefined && xmin >= xmax) {
+          throw new Error('Invalid range: xmin must be less than xmax.');
+        }
         const cut = args.cut ? String(args.cut) : undefined;
         const allowCopy = args.allow_copy === true;
         const hist = await ra.histogramBranch(path, branch, tree, bins, xmin, xmax, cut, allowCopy);

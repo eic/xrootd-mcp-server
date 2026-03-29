@@ -411,6 +411,17 @@ export class ROOTAnalyzer {
     cut?: string,
     allowCopy: boolean = false,
   ): Promise<HistogramResult> {
+    // Validate the range before opening the file so callers get a fast, clear error.
+    const hasXmin = xmin !== undefined;
+    const hasXmax = xmax !== undefined;
+    if (hasXmin !== hasXmax) {
+      throw new Error(
+        `histogramBranch requires both xmin and xmax when specifying an explicit range ` +
+        `(got xmin=${String(xmin)}, xmax=${String(xmax)})`,
+      );
+    }
+    const hasRange = hasXmin && hasXmax;
+
     const file = await this.openRootFile(remotePath, allowCopy);
 
     const tree = await file.readObject(treeName);
@@ -419,7 +430,6 @@ export class ROOTAnalyzer {
     }
 
     // Build the draw expression: "branch >> h(nbins,xmin,xmax)" or just "branch"
-    const hasRange = xmin !== undefined && xmax !== undefined;
     const expr = hasRange ? `${branch} >> h(${bins},${xmin},${xmax})` : branch;
 
     let hist: any;
