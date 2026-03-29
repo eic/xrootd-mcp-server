@@ -331,11 +331,16 @@ export class XRootDClient {
   }
 
   private globToRegex(glob: string): RegExp {
-    const escaped = glob
-      .replace(/\./g, '\\.')
-      .replace(/\*/g, '.*')
-      .replace(/\?/g, '.');
-    return new RegExp(`^${escaped}$`);
+    // Escape all regex metacharacters so the glob is treated literally,
+    // then translate glob wildcards '*' and '?' to their regex equivalents.
+    const escapeRegex = (s: string): string =>
+      s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    const escapedGlob = escapeRegex(glob)
+      .replace(/\\\*/g, '.*')  // escaped '*' becomes regex '.*'
+      .replace(/\\\?/g, '.');  // escaped '?' becomes regex '.'
+
+    return new RegExp(`^${escapedGlob}$`);
   }
 
   // Get directory statistics
