@@ -400,8 +400,8 @@ describe('Multi-Server Configuration Tests', () => {
 
   describe('list_servers tool', () => {
     it('should list all configured servers without arguments', async () => {
-      // list_servers takes no parameters; calling without arguments must not throw
-      const result: any = await multiClient.callTool({ name: 'list_servers', arguments: {} });
+      // list_servers takes no parameters; omit arguments entirely to validate the guard
+      const result: any = await (multiClient as any).callTool({ name: 'list_servers' });
       assert.ok(result.content);
       assert.ok(result.content.length > 0);
       const parsed = JSON.parse(result.content[0].text);
@@ -413,7 +413,7 @@ describe('Multi-Server Configuration Tests', () => {
     });
 
     it('should include cache stats for each server', async () => {
-      const result: any = await multiClient.callTool({ name: 'list_servers', arguments: {} });
+      const result: any = await (multiClient as any).callTool({ name: 'list_servers' });
       const parsed = JSON.parse(result.content[0].text);
       for (const srv of parsed.servers) {
         assert.ok(srv.hasOwnProperty('cacheStats'));

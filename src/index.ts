@@ -24,9 +24,9 @@ interface ServerEntry {
   rootAnalyzer: ROOTAnalyzer;
 }
 
-// Safe XRootD URL pattern: root://host[:port] with no whitespace or shell metacharacters
+// Safe XRootD URL pattern: root://host[:port][/] with no whitespace or shell metacharacters
 // Supports IPv4 hostnames and IPv6 addresses in brackets (e.g., root://[::1]:1094)
-const SAFE_XROOTD_URL_RE = /^root:\/\/(\[[0-9a-fA-F:]+\]|[A-Za-z0-9._\-]+)(:\d+)?$/;
+const SAFE_XROOTD_URL_RE = /^root:\/\/(\[[0-9a-fA-F:]+\]|[A-Za-z0-9._\-]+)(:\d+)?\/?$/;
 
 function validateServerUrl(url: string, serverName: string): void {
   if (!SAFE_XROOTD_URL_RE.test(url)) {
@@ -69,11 +69,16 @@ function normalizeNonNegativeInt(
 ): number {
   let num: number | undefined;
   if (typeof rawValue === 'number') {
-    num = rawValue;
-  } else if (typeof rawValue === 'string' && rawValue.trim() !== '') {
-    const parsed = parseInt(rawValue, 10);
-    if (!Number.isNaN(parsed)) {
-      num = parsed;
+    if (Number.isInteger(rawValue)) {
+      num = rawValue;
+    }
+  } else if (typeof rawValue === 'string') {
+    const trimmed = rawValue.trim();
+    if (trimmed !== '' && /^\d+$/.test(trimmed)) {
+      const parsed = Number(trimmed);
+      if (Number.isInteger(parsed)) {
+        num = parsed;
+      }
     }
   }
 
@@ -106,12 +111,14 @@ function buildServerConfigs(): ServerConfig[] {
           console.error(`Error: XROOTD_SERVERS[${index}] must be an object`);
           process.exit(1);
         }
-        const name = (config as ServerConfig).name;
+        const rawName = (config as ServerConfig).name;
         const url = (config as ServerConfig).url;
-        if (typeof name !== 'string' || name.trim().length === 0) {
+        if (typeof rawName !== 'string' || rawName.trim().length === 0) {
           console.error(`Error: XROOTD_SERVERS[${index}].name must be a non-empty string`);
           process.exit(1);
         }
+        const name = rawName.trim();
+        (config as ServerConfig).name = name;
         if (typeof url !== 'string' || url.trim().length === 0) {
           console.error(`Error: XROOTD_SERVERS[${index}].url must be a non-empty string`);
           process.exit(1);
@@ -155,9 +162,21 @@ for (const cfg of serverConfigs) {
   const cacheEnabled = normalizeCacheEnabled(anyCfg.cacheEnabled, true);
   const cacheTTL = normalizeNonNegativeInt(anyCfg.cacheTTL, 60, 'cacheTTL', cfg.name);
   const cacheMaxSize = normalizeNonNegativeInt(anyCfg.cacheMaxSize, 1000, 'cacheMaxSize', cfg.name);
+  const rawBaseDir = anyCfg.baseDir;
+  let baseDir: string;
+  if (rawBaseDir === undefined || rawBaseDir === null) {
+    baseDir = '/';
+  } else if (typeof rawBaseDir === 'string') {
+    baseDir = rawBaseDir;
+  } else {
+    console.error(
+      `Error: Invalid baseDir for server "${cfg.name}": expected string or undefined, got ${typeof rawBaseDir}`
+    );
+    process.exit(1);
+  }
   const client = new XRootDClient(
     cfg.url,
-    cfg.baseDir ?? '/',
+    baseDir,
     cacheEnabled,
     cacheTTL,
     cacheMaxSize
