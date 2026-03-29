@@ -371,14 +371,17 @@ describe('Multi-Server Configuration Tests', () => {
   ]);
 
   before(async () => {
+    const multiEnv: Record<string, string> = {};
+    for (const [k, v] of Object.entries(process.env)) {
+      if (k !== 'XROOTD_SERVER' && typeof v === 'string') {
+        multiEnv[k] = v;
+      }
+    }
+    multiEnv['XROOTD_SERVERS'] = MULTI_SERVER_CONFIG;
     multiTransport = new StdioClientTransport({
       command: process.execPath,
       args: ['build/src/index.js'],
-      env: {
-        ...process.env,
-        XROOTD_SERVER: undefined,
-        XROOTD_SERVERS: MULTI_SERVER_CONFIG,
-      },
+      env: multiEnv,
     });
 
     multiClient = new Client(

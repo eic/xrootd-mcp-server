@@ -173,6 +173,7 @@ for (const cfg of serverConfigs) {
       `Error: Invalid baseDir for server "${cfg.name}": expected string or undefined, got ${typeof rawBaseDir}`
     );
     process.exit(1);
+    baseDir = '/'; // unreachable; satisfies TypeScript control-flow analysis
   }
   const client = new XRootDClient(
     cfg.url,
@@ -578,12 +579,9 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 });
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
-
-  // list_servers takes no parameters; allow missing arguments for it
-  if (!args && name !== 'list_servers') {
-    throw new Error('Missing arguments');
-  }
+  const { name } = request.params;
+  // list_servers takes no parameters so clients may omit arguments; default to {}
+  const args = request.params.arguments ?? {};
 
   try {
     switch (name) {
