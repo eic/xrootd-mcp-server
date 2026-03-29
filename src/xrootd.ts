@@ -19,6 +19,21 @@ function encodeXRootDPath(path: string): string {
   ).join('/');
 }
 
+// Percent-encode path segments for use in an HTTP URL.  Unlike encodeXRootDPath,
+// this also encodes '=' and '+' which have special meaning in HTTP query strings
+// and would be misinterpreted by HTTP clients/servers if left unencoded.
+function encodeHttpPath(path: string): string {
+  return path.split('/').map(segment =>
+    segment
+      .replace(/%/g, '%25')
+      .replace(/\?/g, '%3F')
+      .replace(/#/g, '%23')
+      .replace(/ /g, '%20')
+      .replace(/=/g, '%3D')
+      .replace(/\+/g, '%2B')
+  ).join('/');
+}
+
 // Convert a glob pattern to a RegExp.  All regex metacharacters in the input
 // are escaped so they are treated as literals; only the glob wildcards '*' and
 // '?' retain special meaning (mapping to '.*' and '.' respectively).
@@ -160,7 +175,7 @@ export class XRootDClient {
     // Percent-encode each path segment while preserving '/' separators so that
     // characters like '#', '+', and spaces are not misinterpreted by HTTP parsers.
     // encodedPath already begins with '/', so concatenate directly to avoid '//'.
-    const encodedPath = encodeXRootDPath(resolvedPath);
+    const encodedPath = encodeHttpPath(resolvedPath);
     return `${httpBase}${encodedPath}`;
   }
 
