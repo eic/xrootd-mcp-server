@@ -230,4 +230,47 @@ describe('HTTP Fallback Behavior', () => {
       console.error(`  ✓ xrdcp fallback attempted (failed as expected: ${error.message.slice(0, 80)})`);
     }
   });
+
+  it('histogramBranch should throw CopyRequiredError when HTTP fails and allow_copy is false', async () => {
+    try {
+      await unreachableAnalyzer.histogramBranch('/nonexistent.root', 'x', 'events', 100, undefined, undefined, undefined, false);
+      assert.fail('Expected CopyRequiredError to be thrown');
+    } catch (error: any) {
+      assert.ok(
+        error instanceof CopyRequiredError || error.name === 'CopyRequiredError',
+        `Expected CopyRequiredError but got ${error.name}: ${error.message}`
+      );
+      assert.ok(
+        error.message.includes('allow_copy: true'),
+        'Error message should contain guidance on using allow_copy: true'
+      );
+    }
+  });
+});
+
+describe('histogramBranch argument validation', () => {
+  let unreachableAnalyzer: ROOTAnalyzer;
+
+  before(() => {
+    const unreachableClient = new XRootDClient('root://localhost:19999', '/', false);
+    unreachableAnalyzer = new ROOTAnalyzer(unreachableClient);
+  });
+
+  // bins validation is applied in the index.ts handler; histogramBranch itself
+  // accepts any numeric bins. The tests below exercise the range-guard logic
+  // that lives in histogramBranch directly.
+
+  it('histogramBranch should throw for partial range (only xmin)', async () => {
+    await assert.rejects(
+      () => unreachableAnalyzer.histogramBranch('/f.root', 'b', 'events', 100, 0, undefined),
+      /xmin.*xmax|xmax.*xmin/i
+    );
+  });
+
+  it('histogramBranch should throw for partial range (only xmax)', async () => {
+    await assert.rejects(
+      () => unreachableAnalyzer.histogramBranch('/f.root', 'b', 'events', 100, undefined, 10),
+      /xmin.*xmax|xmax.*xmin/i
+    );
+  });
 });
