@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { globToRegex } from '../src/xrootd.js';
+import { globToRegex } from '../src/xrootd';
 
 describe('globToRegex', () => {
   describe('glob wildcards', () => {
