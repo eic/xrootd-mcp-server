@@ -143,7 +143,7 @@ describe('XRootD MCP Server Integration Tests', () => {
         assert.ok(result.content);
         assert.ok(result.content.length > 0);
       } catch (error: any) {
-        if (error.code === -2) {
+        if (error.code === -32001) {
           console.log('  ⊘ Search timed out - directory too large for CI environment');
           return;
         }
@@ -165,7 +165,7 @@ describe('XRootD MCP Server Integration Tests', () => {
         assert.ok(result.content);
         assert.ok(result.content.length > 0);
       } catch (error: any) {
-        if (error.code === -2) {
+        if (error.code === -32001) {
           console.log('  ⊘ Search timed out - directory too large for CI environment');
           return;
         }
@@ -209,7 +209,7 @@ describe('XRootD MCP Server Integration Tests', () => {
         assert.ok(stats.hasOwnProperty('totalFiles'));
         assert.ok(stats.hasOwnProperty('totalDirectories'));
       } catch (error: any) {
-        if (error.code === -2) {
+        if (error.code === -32001) {
           console.log('  ⊘ Statistics timed out - directory too large for CI environment');
           return;
         }
@@ -295,6 +295,58 @@ describe('XRootD MCP Server Integration Tests', () => {
         assert.fail('Should have thrown an error for missing path');
       } catch (error) {
         assert.ok(error);
+      }
+    });
+  });
+
+  describe('Special Characters in Paths', () => {
+    // These tests verify that paths containing characters like '=', '+', '#',
+    // and spaces are passed correctly to xrdfs/xrdcp without shell interpretation.
+    // The commands are expected to fail (path doesn't exist) but must NOT throw
+    // due to shell parsing errors or command injection — the error should be an
+    // xrootd "no such file" error, not a syntax/spawn error.
+
+    const specialCharPaths = [
+      { label: 'equal sign', path: '/q2=10_100' },
+      { label: 'plus sign', path: '/pi+' },
+      { label: 'hash', path: '/dir#1' },
+      { label: 'space', path: '/my dir' },
+      { label: 'combined', path: '/run=123 q2=10#bin' },
+    ];
+
+    for (const { label, path } of specialCharPaths) {
+      it(`should pass path with ${label} to xrdfs without shell error`, async () => {
+        const result: any = await client.callTool({
+          name: 'list_directory',
+          arguments: { path },
+        });
+        // The tool should return an error response (path doesn't exist on server),
+        // but NOT a spawn/shell error caused by unescaped special characters.
+        assert.ok(result.content);
+        assert.ok(result.content.length > 0);
+        if (result.isError) {
+          const errorText: string = result.content[0].text;
+          // Must be an xrootd path error, not a shell metacharacter error
+          assert.ok(
+            !errorText.includes('spawn') && !errorText.includes('syntax error'),
+            `Unexpected shell error for path with ${label}: ${errorText}`
+          );
+        }
+      });
+    }
+
+    it('should pass search pattern with equal sign to xrdfs find without shell error', async () => {
+      const result: any = await client.callTool({
+        name: 'search_files',
+        arguments: { pattern: 'run=*.root', basePath: '/' },
+      });
+      assert.ok(result.content);
+      if (result.isError) {
+        const errorText: string = result.content[0].text;
+        assert.ok(
+          !errorText.includes('spawn') && !errorText.includes('syntax error'),
+          `Unexpected shell error for pattern with equal sign: ${errorText}`
+        );
       }
     });
   });
