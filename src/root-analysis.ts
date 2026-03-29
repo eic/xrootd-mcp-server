@@ -1,6 +1,25 @@
 import { openFile } from 'jsroot';
 import { XRootDClient } from './xrootd.js';
 
+/**
+ * Thrown when HTTP access to a ROOT file fails and allowCopy is false.
+ * The client should retry with allow_copy: true to permit the file copy via xrdcp.
+ */
+export class CopyRequiredError extends Error {
+  constructor(
+    public readonly remotePath: string,
+    public readonly httpUrl: string,
+    httpError: string,
+  ) {
+    super(
+      `HTTP access failed for ${remotePath} (tried ${httpUrl}): ${httpError}. ` +
+      `Analyzing this file requires copying it via xrdcp. ` +
+      `Retry with allow_copy: true to permit the file copy.`
+    );
+    this.name = 'CopyRequiredError';
+  }
+}
+
 export interface ROOTFileStructure {
   path: string;
   size: number;
@@ -80,21 +99,42 @@ export interface AggregatedCollectionStats {
 export class ROOTAnalyzer {
   constructor(private xrootdClient: XRootDClient) {}
 
-  async analyzeFile(remotePath: string): Promise<ROOTFileStructure> {
-    // Read the entire ROOT file into memory
-    const fileData = await this.xrootdClient.readFile(remotePath);
-    
-    // Create a blob from the buffer for jsroot
-    const blob = new Blob([new Uint8Array(fileData)]);
-    const file = await openFile(blob);
-    
-    if (!file) {
-      throw new Error('Failed to open ROOT file');
+  /**
+   * Open a ROOT file, preferring HTTP-based access via jsroot.
+   * If HTTP access fails and allowCopy is false, throws CopyRequiredError.
+   * If HTTP access fails and allowCopy is true, falls back to a full xrdcp copy.
+   */
+  private async openRootFile(remotePath: string, allowCopy: boolean): Promise<any> {
+    const httpUrl = this.xrootdClient.getHttpUrl(remotePath);
+
+    try {
+      const file = await openFile(httpUrl);
+      if (!file) {
+        throw new Error('openFile returned null');
+      }
+      return file;
+    } catch (httpError: any) {
+      const httpErrorDetail = String(httpError?.message ?? httpError);
+      if (!allowCopy) {
+        throw new CopyRequiredError(remotePath, httpUrl, httpErrorDetail);
+      }
+      // Fall back to a full xrdcp copy
+      const fileData = await this.xrootdClient.readFile(remotePath);
+      const blob = new Blob([new Uint8Array(fileData)]);
+      const file = await openFile(blob);
+      if (!file) {
+        throw new Error('Failed to open ROOT file via xrdcp copy');
+      }
+      return file;
     }
+  }
+
+  async analyzeFile(remotePath: string, allowCopy: boolean = false): Promise<ROOTFileStructure> {
+    const file = await this.openRootFile(remotePath, allowCopy);
 
     const structure: ROOTFileStructure = {
       path: remotePath,
-      size: fileData.length,
+      size: (file.fEND as number | undefined) ?? 0,
       keys: [],
       trees: [],
       directories: [],
@@ -177,14 +217,8 @@ export class ROOTAnalyzer {
     }
   }
 
-  async extractPodioMetadata(remotePath: string): Promise<PodioMetadata> {
-    const fileData = await this.xrootdClient.readFile(remotePath);
-    const blob = new Blob([new Uint8Array(fileData)]);
-    const file = await openFile(blob);
-    
-    if (!file) {
-      throw new Error('Failed to open ROOT file');
-    }
+  async extractPodioMetadata(remotePath: string, allowCopy: boolean = false): Promise<PodioMetadata> {
+    const file = await this.openRootFile(remotePath, allowCopy);
 
     const metadata: PodioMetadata = {};
 
@@ -227,14 +261,8 @@ export class ROOTAnalyzer {
     return metadata;
   }
 
-  async getEventStatistics(remotePath: string): Promise<EventStatistics> {
-    const fileData = await this.xrootdClient.readFile(remotePath);
-    const blob = new Blob([new Uint8Array(fileData)]);
-    const file = await openFile(blob);
-    
-    if (!file) {
-      throw new Error('Failed to open ROOT file');
-    }
+  async getEventStatistics(remotePath: string, allowCopy: boolean = false): Promise<EventStatistics> {
+    const file = await this.openRootFile(remotePath, allowCopy);
 
     let totalEvents = 0;
     const collectionStats: Record<string, CollectionStatistics> = {};
@@ -276,7 +304,7 @@ export class ROOTAnalyzer {
     };
   }
 
-  async getDatasetEventStatistics(datasetPath: string): Promise<DatasetEventStatistics> {
+  async getDatasetEventStatistics(datasetPath: string, allowCopy: boolean = false): Promise<DatasetEventStatistics> {
     // List all ROOT files in dataset
     const files = await this.xrootdClient.searchFiles('*.root', datasetPath, true, false);
     
@@ -289,7 +317,7 @@ export class ROOTAnalyzer {
     // Analyze each file
     for (const file of files) {
       try {
-        const eventStats = await this.getEventStatistics(file.path);
+        const eventStats = await this.getEventStatistics(file.path, allowCopy);
         
         const fileEventStats: FileEventStatistics = {
           path: file.path,
@@ -327,6 +355,11 @@ export class ROOTAnalyzer {
         
         fileStats.push(fileEventStats);
       } catch (error) {
+        // Rethrow CopyRequiredError so the caller gets actionable guidance
+        // instead of silently returning a zeroed aggregate.
+        if (error instanceof CopyRequiredError) {
+          throw error;
+        }
         console.error(`Failed to analyze file ${file.path}:`, error);
       }
     }

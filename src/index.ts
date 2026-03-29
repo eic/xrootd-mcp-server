@@ -510,7 +510,7 @@ const tools: Tool[] = [
   },
   {
     name: 'analyze_root_file',
-    description: 'Analyze ROOT file structure, trees, and branches',
+    description: 'Analyze ROOT file structure, trees, and branches. Prefers HTTP-based access; if unavailable, set allow_copy: true to fall back to xrdcp.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -521,6 +521,10 @@ const tools: Tool[] = [
         server: {
           type: 'string',
           description: 'Name of the XRootD server to use (default: first configured server)',
+        },
+        allow_copy: {
+          type: 'boolean',
+          description: 'Fall back to a full xrdcp file copy if HTTP access fails (default: false).',
         },
       },
       required: ['path'],
@@ -528,7 +532,7 @@ const tools: Tool[] = [
   },
   {
     name: 'extract_podio_metadata',
-    description: 'Extract metadata from podio_metadata tree in ROOT file',
+    description: 'Extract metadata from podio_metadata tree in ROOT file. Prefers HTTP-based access; if unavailable, set allow_copy: true to fall back to xrdcp.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -539,6 +543,10 @@ const tools: Tool[] = [
         server: {
           type: 'string',
           description: 'Name of the XRootD server to use (default: first configured server)',
+        },
+        allow_copy: {
+          type: 'boolean',
+          description: 'Fall back to a full xrdcp file copy if HTTP access fails (default: false).',
         },
       },
       required: ['path'],
@@ -546,7 +554,7 @@ const tools: Tool[] = [
   },
   {
     name: 'get_event_statistics',
-    description: 'Get event statistics and collection info from ROOT file',
+    description: 'Get event statistics and collection info from ROOT file. Prefers HTTP-based access; if unavailable, set allow_copy: true to fall back to xrdcp.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -558,13 +566,17 @@ const tools: Tool[] = [
           type: 'string',
           description: 'Name of the XRootD server to use (default: first configured server)',
         },
+        allow_copy: {
+          type: 'boolean',
+          description: 'Fall back to a full xrdcp file copy if HTTP access fails (default: false).',
+        },
       },
       required: ['path'],
     },
   },
   {
     name: 'get_dataset_event_statistics',
-    description: 'Aggregate event statistics across all ROOT files in a dataset',
+    description: 'Aggregate event statistics across all ROOT files in a dataset. Prefers HTTP-based access; if unavailable, set allow_copy: true to fall back to xrdcp.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -575,6 +587,10 @@ const tools: Tool[] = [
         server: {
           type: 'string',
           description: 'Name of the XRootD server to use (default: first configured server)',
+        },
+        allow_copy: {
+          type: 'boolean',
+          description: 'Fall back to full xrdcp file copies if HTTP access fails (default: false).',
         },
       },
       required: ['path'],
@@ -898,7 +914,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'analyze_root_file': {
         const { rootAnalyzer: ra } = getClient(args.server ? String(args.server) : undefined);
         const path = String(args.path);
-        const structure = await ra.analyzeFile(path);
+        const allowCopy = args.allow_copy === true;
+        const structure = await ra.analyzeFile(path, allowCopy);
         
         return {
           content: [
@@ -927,7 +944,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'extract_podio_metadata': {
         const { rootAnalyzer: ra } = getClient(args.server ? String(args.server) : undefined);
         const path = String(args.path);
-        const metadata = await ra.extractPodioMetadata(path);
+        const allowCopy = args.allow_copy === true;
+        const metadata = await ra.extractPodioMetadata(path, allowCopy);
         
         return {
           content: [
@@ -942,7 +960,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'get_event_statistics': {
         const { rootAnalyzer: ra } = getClient(args.server ? String(args.server) : undefined);
         const path = String(args.path);
-        const stats = await ra.getEventStatistics(path);
+        const allowCopy = args.allow_copy === true;
+        const stats = await ra.getEventStatistics(path, allowCopy);
         
         return {
           content: [
@@ -971,7 +990,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'get_dataset_event_statistics': {
         const { rootAnalyzer: ra } = getClient(args.server ? String(args.server) : undefined);
         const path = String(args.path);
-        const stats = await ra.getDatasetEventStatistics(path);
+        const allowCopy = args.allow_copy === true;
+        const stats = await ra.getDatasetEventStatistics(path, allowCopy);
         
         return {
           content: [
