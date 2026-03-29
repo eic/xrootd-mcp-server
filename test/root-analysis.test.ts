@@ -137,10 +137,14 @@ describe('HTTP Fallback Behavior', () => {
   // when allow_copy is false (the default).
   let client: XRootDClient;
   let analyzer: ROOTAnalyzer;
+  // Use an unreachable server so HTTP requests fail deterministically.
+  let unreachableAnalyzer: ROOTAnalyzer;
 
   before(() => {
     client = new XRootDClient(XROOTD_SERVER, '/work/eic2/EPIC', false);
     analyzer = new ROOTAnalyzer(client);
+    const unreachableClient = new XRootDClient('root://localhost:19999', '/', false);
+    unreachableAnalyzer = new ROOTAnalyzer(unreachableClient);
   });
 
   it('getHttpUrl should convert root:// to https://', () => {
@@ -158,9 +162,6 @@ describe('HTTP Fallback Behavior', () => {
   it('should throw CopyRequiredError when HTTP access fails and allow_copy is false', async () => {
     // Use a deliberately unreachable HTTPS URL by pointing at localhost with
     // an unused port so that the HTTP request fails immediately.
-    const unreachableClient = new XRootDClient('root://localhost:19999', '/', false);
-    const unreachableAnalyzer = new ROOTAnalyzer(unreachableClient);
-
     try {
       await unreachableAnalyzer.analyzeFile('/nonexistent.root', false);
       assert.fail('Expected CopyRequiredError to be thrown');
@@ -182,9 +183,6 @@ describe('HTTP Fallback Behavior', () => {
   });
 
   it('should throw CopyRequiredError for all three analysis methods when HTTP fails', async () => {
-    const unreachableClient = new XRootDClient('root://localhost:19999', '/', false);
-    const unreachableAnalyzer = new ROOTAnalyzer(unreachableClient);
-
     for (const methodName of ['analyzeFile', 'extractPodioMetadata', 'getEventStatistics'] as const) {
       try {
         await unreachableAnalyzer[methodName]('/nonexistent.root', false);
@@ -202,9 +200,6 @@ describe('HTTP Fallback Behavior', () => {
     // With allow_copy=true the code must not raise CopyRequiredError;
     // it should try xrdcp instead (which may itself fail if the file
     // does not exist, but the failure reason must be different).
-    const unreachableClient = new XRootDClient('root://localhost:19999', '/', false);
-    const unreachableAnalyzer = new ROOTAnalyzer(unreachableClient);
-
     try {
       await unreachableAnalyzer.analyzeFile('/nonexistent.root', true);
       // If this somehow succeeds, that's also fine.

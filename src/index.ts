@@ -510,7 +510,7 @@ const tools: Tool[] = [
   },
   {
     name: 'analyze_root_file',
-    description: 'Analyze ROOT file structure, trees, and branches. First attempts HTTP-based access via jsroot (efficient, uses byte-range requests). If HTTP access fails, returns an error with instructions to retry using allow_copy: true to permit a full file copy via xrdcp.',
+    description: 'Analyze ROOT file structure, trees, and branches. Prefers HTTP-based access; if unavailable, set allow_copy: true to fall back to xrdcp.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -524,7 +524,7 @@ const tools: Tool[] = [
         },
         allow_copy: {
           type: 'boolean',
-          description: 'Allow copying the file via xrdcp if HTTP access fails (default: false). Set to true only after being prompted that a copy is required.',
+          description: 'Fall back to a full xrdcp file copy if HTTP access fails (default: false).',
         },
       },
       required: ['path'],
@@ -532,7 +532,7 @@ const tools: Tool[] = [
   },
   {
     name: 'extract_podio_metadata',
-    description: 'Extract metadata from podio_metadata tree in ROOT file. First attempts HTTP-based access via jsroot (efficient, uses byte-range requests). If HTTP access fails, returns an error with instructions to retry using allow_copy: true to permit a full file copy via xrdcp.',
+    description: 'Extract metadata from podio_metadata tree in ROOT file. Prefers HTTP-based access; if unavailable, set allow_copy: true to fall back to xrdcp.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -546,7 +546,7 @@ const tools: Tool[] = [
         },
         allow_copy: {
           type: 'boolean',
-          description: 'Allow copying the file via xrdcp if HTTP access fails (default: false). Set to true only after being prompted that a copy is required.',
+          description: 'Fall back to a full xrdcp file copy if HTTP access fails (default: false).',
         },
       },
       required: ['path'],
@@ -554,7 +554,7 @@ const tools: Tool[] = [
   },
   {
     name: 'get_event_statistics',
-    description: 'Get event statistics and collection info from ROOT file. First attempts HTTP-based access via jsroot (efficient, uses byte-range requests). If HTTP access fails, returns an error with instructions to retry using allow_copy: true to permit a full file copy via xrdcp.',
+    description: 'Get event statistics and collection info from ROOT file. Prefers HTTP-based access; if unavailable, set allow_copy: true to fall back to xrdcp.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -568,7 +568,7 @@ const tools: Tool[] = [
         },
         allow_copy: {
           type: 'boolean',
-          description: 'Allow copying the file via xrdcp if HTTP access fails (default: false). Set to true only after being prompted that a copy is required.',
+          description: 'Fall back to a full xrdcp file copy if HTTP access fails (default: false).',
         },
       },
       required: ['path'],
@@ -576,7 +576,7 @@ const tools: Tool[] = [
   },
   {
     name: 'get_dataset_event_statistics',
-    description: 'Aggregate event statistics across all ROOT files in a dataset. First attempts HTTP-based access via jsroot (efficient, uses byte-range requests). If HTTP access fails, returns an error with instructions to retry using allow_copy: true to permit a full file copy via xrdcp.',
+    description: 'Aggregate event statistics across all ROOT files in a dataset. Prefers HTTP-based access; if unavailable, set allow_copy: true to fall back to xrdcp.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -590,7 +590,7 @@ const tools: Tool[] = [
         },
         allow_copy: {
           type: 'boolean',
-          description: 'Allow copying files via xrdcp if HTTP access fails (default: false). Set to true only after being prompted that a copy is required.',
+          description: 'Fall back to full xrdcp file copies if HTTP access fails (default: false).',
         },
       },
       required: ['path'],

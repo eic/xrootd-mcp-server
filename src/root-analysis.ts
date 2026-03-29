@@ -133,7 +133,7 @@ export class ROOTAnalyzer {
 
     const structure: ROOTFileStructure = {
       path: remotePath,
-      size: (file.fEND as number) ?? 0,
+      size: (file.fEND as number | undefined) ?? 0,
       keys: [],
       trees: [],
       directories: [],
