@@ -233,7 +233,11 @@ const tools: Tool[] = [
         },
         limit: {
           type: 'number',
-          description: 'Maximum number of entries to return. Use this for large directories to avoid overwhelming context with thousands of filenames.',
+          description: 'Maximum number of entries per page (default: 1000). Use with offset for pagination through large directories.',
+        },
+        offset: {
+          type: 'number',
+          description: 'Starting index for pagination (default: 0). Use with limit to retrieve subsequent pages.',
         },
         server: {
           type: 'string',
@@ -602,20 +606,25 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'list_directory': {
         const { client } = getClient(args.server ? String(args.server) : undefined);
         const path = String(args.path);
-        const limit = args.limit !== undefined ? Number(args.limit) : undefined;
+        const limit = args.limit !== undefined ? Number(args.limit) : 1000;
+        const offset = args.offset !== undefined ? Number(args.offset) : 0;
         const allEntries = await client.listDirectory(path);
-        const entries = limit !== undefined ? allEntries.slice(0, limit) : allEntries;
-        
+        const page = allEntries.slice(offset, offset + limit);
+        const hasMore = offset + page.length < allEntries.length;
+
         const responseBody: Record<string, unknown> = {
           totalEntries: allEntries.length,
-          returnedEntries: entries.length,
-          entries,
+          offset,
+          limit,
+          returnedEntries: page.length,
+          hasMore,
+          entries: page,
         };
-        if (limit !== undefined && allEntries.length > limit) {
-          responseBody.truncated = true;
-          responseBody.note = `Showing first ${limit} of ${allEntries.length} entries. Increase 'limit' or use 'list_directory_filtered' to retrieve specific entries.`;
+        if (hasMore) {
+          responseBody.nextOffset = offset + page.length;
+          responseBody.note = `Showing entries ${offset}–${offset + page.length - 1} of ${allEntries.length}. Use offset=${offset + page.length} to retrieve the next page.`;
         }
-        
+
         return {
           content: [
             {

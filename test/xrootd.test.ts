@@ -404,9 +404,14 @@ describe('Large Directory Event Counting', () => {
     assert.ok(typeof body.totalEntries === 'number', 'totalEntries should be a number');
     assert.ok(body.totalEntries > 0, 'Directory should contain at least one entry');
     assert.ok(Array.isArray(body.entries), 'entries should be an array');
-    assert.equal(body.entries.length, body.totalEntries, 'All entries returned when no limit is set');
+    assert.equal(body.entries.length, body.returnedEntries, 'entries length should match returnedEntries');
+    assert.ok(body.returnedEntries <= body.totalEntries, 'returnedEntries should not exceed totalEntries');
+    // When the directory fits within the default limit, hasMore is false
+    if (!body.hasMore) {
+      assert.equal(body.returnedEntries, body.totalEntries, 'All entries returned when hasMore is false');
+    }
 
-    console.error(`  ✓ Directory ${LARGE_DIR} contains ${body.totalEntries} entries`);
+    console.error(`  ✓ Directory ${LARGE_DIR} contains ${body.totalEntries} entries (returned: ${body.returnedEntries}, hasMore: ${body.hasMore})`);
   });
 
   it('should list large directory with limit=1 to avoid context overflow', { timeout: 60000 }, async () => {
@@ -427,15 +432,65 @@ describe('Large Directory Event Counting', () => {
     assert.ok(typeof body.totalEntries === 'number', 'totalEntries should be a number');
     assert.equal(body.returnedEntries, 1, 'Only 1 entry should be returned');
     assert.equal(body.entries.length, 1, 'entries array should have exactly 1 element');
+    assert.equal(body.limit, 1, 'limit field should reflect the requested limit');
+    assert.equal(body.offset, 0, 'offset should default to 0');
 
-    // If the directory has more than 1 file, it must be marked as truncated
+    // If the directory has more than 1 file, pagination metadata must be present
     if (body.totalEntries > 1) {
-      assert.equal(body.truncated, true, 'truncated flag should be set when entries are omitted');
-      assert.ok(typeof body.note === 'string', 'A note should explain truncation');
+      assert.equal(body.hasMore, true, 'hasMore flag should be set when entries are omitted');
+      assert.equal(body.nextOffset, 1, 'nextOffset should point to the next page');
+      assert.ok(typeof body.note === 'string', 'A note should explain how to paginate');
     }
 
-    console.error(`  ✓ limit=1 returned 1 of ${body.totalEntries} entries (truncated: ${body.truncated ?? false})`);
+    console.error(`  ✓ limit=1 returned 1 of ${body.totalEntries} entries (hasMore: ${body.hasMore ?? false})`);
     console.error(`  ✓ First entry: ${body.entries[0].name}`);
+  });
+
+  it('should paginate through the large directory using offset', { timeout: 60000 }, async () => {
+    // First page
+    const page1Result: any = await largeClient.callTool({
+      name: 'list_directory',
+      arguments: { path: LARGE_DIR, limit: 5, offset: 0 },
+    });
+
+    assert.ok(page1Result.content);
+    if (page1Result.isError) {
+      console.error('  ⊘ Skipping - directory not accessible:', page1Result.content[0].text);
+      return;
+    }
+
+    const page1 = JSON.parse(page1Result.content[0].text);
+    assert.equal(page1.offset, 0, 'First page offset should be 0');
+    assert.equal(page1.limit, 5, 'Limit should be 5');
+
+    if (page1.totalEntries < 6) {
+      console.error('  ⊘ Skipping pagination test - directory has fewer than 6 entries');
+      return;
+    }
+
+    assert.equal(page1.returnedEntries, 5, 'First page should have 5 entries');
+    assert.equal(page1.hasMore, true, 'hasMore should be true when more pages exist');
+    assert.equal(page1.nextOffset, 5, 'nextOffset should be 5');
+
+    // Second page using nextOffset
+    const page2Result: any = await largeClient.callTool({
+      name: 'list_directory',
+      arguments: { path: LARGE_DIR, limit: 5, offset: page1.nextOffset },
+    });
+
+    assert.ok(page2Result.content);
+    const page2 = JSON.parse(page2Result.content[0].text);
+    assert.equal(page2.offset, 5, 'Second page offset should be 5');
+    assert.equal(page2.returnedEntries, 5, 'Second page should have 5 entries');
+
+    // Pages must not overlap
+    const page1Names = page1.entries.map((e: any) => e.name);
+    const page2Names = page2.entries.map((e: any) => e.name);
+    const overlap = page1Names.filter((n: string) => page2Names.includes(n));
+    assert.equal(overlap.length, 0, 'Pages should not overlap');
+
+    console.error(`  ✓ Page 1 (offset=0, limit=5): ${page1Names.join(', ')}`);
+    console.error(`  ✓ Page 2 (offset=5, limit=5): ${page2Names.join(', ')}`);
   });
 
   it('should count events in the first ROOT file of the large directory', { timeout: 120000 }, async () => {
