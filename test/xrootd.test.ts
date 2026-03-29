@@ -73,10 +73,10 @@ describe('XRootD MCP Server Integration Tests', () => {
     });
 
     it('should list EVGEN directory', async () => {
-      const result: any = await client.callTool({
+      const result = await client.callTool({
         name: 'list_directory',
         arguments: { path: 'EVGEN' },
-      });
+      }) as CallToolResult;
       
       assert.ok(result.content);
       assert.ok(result.content.length > 0);
@@ -97,14 +97,16 @@ describe('XRootD MCP Server Integration Tests', () => {
 
   describe('File Information', () => {
     it('should get info for EVGEN directory', async () => {
-      const result: any = await client.callTool({
+      const result = await client.callTool({
         name: 'get_file_info',
         arguments: { path: 'EVGEN' },
-      });
+      }) as CallToolResult;
       
       assert.ok(result.content);
       assert.ok(result.content.length > 0);
-      const text = result.content[0].text;
+      const firstContent = result.content[0];
+      assert.strictEqual(firstContent.type, 'text', 'get_file_info should return text content');
+      const text = firstContent.text;
       
       // Handle case where the tool returns an error message
       if (text.startsWith('Error:')) {
@@ -133,13 +135,13 @@ describe('XRootD MCP Server Integration Tests', () => {
   describe('Search Functionality', () => {
     it('should search for files by pattern', { timeout: 90000 }, async () => {
       try {
-        const result: any = await client.callTool({
+        const result = await client.callTool({
           name: 'search_files',
           arguments: {
             path: '/',
             pattern: 'EVGEN',
           },
-        });
+        }) as CallToolResult;
         
         assert.ok(result.content);
         assert.ok(result.content.length > 0);
@@ -154,14 +156,14 @@ describe('XRootD MCP Server Integration Tests', () => {
 
     it('should search with regex pattern', { timeout: 90000 }, async () => {
       try {
-        const result: any = await client.callTool({
+        const result = await client.callTool({
           name: 'search_files',
           arguments: {
             path: '/',
             pattern: 'EV.*',
             useRegex: true,
           },
-        });
+        }) as CallToolResult;
         
         assert.ok(result.content);
         assert.ok(result.content.length > 0);
@@ -177,10 +179,10 @@ describe('XRootD MCP Server Integration Tests', () => {
 
   describe('Campaign Discovery', () => {
     it('should discover campaigns', async () => {
-      const result: any = await client.callTool({
+      const result = await client.callTool({
         name: 'discover_campaigns',
         arguments: { path: '/' },
-      });
+      }) as CallToolResult;
       
       assert.ok(result.content);
       assert.ok(result.content.length > 0);
