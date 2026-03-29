@@ -65,6 +65,44 @@ Run with docker-compose:
 docker-compose up -d
 ```
 
+This starts two containers:
+
+- **`xrootd-mcp-server`** — the MCP server itself
+- **`xrootd-mcp-server-watchtower`** — [Watchtower](https://containrrr.dev/watchtower/), which polls `ghcr.io` once per hour and automatically pulls and restarts `xrootd-mcp-server` whenever a new image is published
+
+### Automatic Updates with Watchtower
+
+> **Security note:** Watchtower requires access to the Docker daemon socket
+> (`/var/run/docker.sock`), which grants it full control over the host Docker
+> daemon. In shared or multi-tenant environments, consider whether this
+> privilege is acceptable before enabling the `watchtower` service.
+
+[Watchtower](https://containrrr.dev/watchtower/) keeps the `xrootd-mcp-server` container up to date without any manual intervention. When a new image is pushed to `ghcr.io/eic/xrootd-mcp-server`, Watchtower:
+
+1. Pulls the new image
+2. Gracefully stops the running container
+3. Starts a fresh container with the same configuration
+4. Removes the old image (via `--cleanup`)
+
+The default poll interval is **1 hour**. Override it in your `.env` file:
+
+```bash
+# Check for updates every 30 minutes
+WATCHTOWER_POLL_INTERVAL=1800
+```
+
+To disable automatic updates, remove or comment out the `watchtower` service in `docker-compose.yml`, or stop it independently:
+
+```bash
+docker-compose stop watchtower
+```
+
+To trigger an immediate update check:
+
+```bash
+docker-compose pull xrootd-mcp-server && docker-compose up -d xrootd-mcp-server
+```
+
 ## Authentication
 
 If you need XRootD authentication (grid certificates):

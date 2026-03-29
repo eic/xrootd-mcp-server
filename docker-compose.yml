@@ -2,7 +2,6 @@ version: '3.8'
 
 services:
   xrootd-mcp-server:
-    build: .
     image: ghcr.io/eic/xrootd-mcp-server:latest
     container_name: xrootd-mcp-server
     stdin_open: true
@@ -46,4 +45,20 @@ services:
       start_period: 5s
     
     # Restart policy
+    restart: unless-stopped
+
+  # Watchtower automatically pulls and restarts the xrootd-mcp-server container
+  # whenever a new image is published to ghcr.io.
+  watchtower:
+    image: containrrr/watchtower:1.7.1
+    container_name: xrootd-mcp-server-watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    # Only watch the xrootd-mcp-server container (not watchtower itself)
+    command: xrootd-mcp-server
+    environment:
+      # Check for updates every hour (3600 seconds). Override via env var.
+      WATCHTOWER_POLL_INTERVAL: ${WATCHTOWER_POLL_INTERVAL:-3600}
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_INCLUDE_RESTARTING: "true"
     restart: unless-stopped
