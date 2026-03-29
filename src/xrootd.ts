@@ -116,7 +116,10 @@ export class XRootDClient {
 
   private getFullPath(path: string): string {
     const resolvedPath = this.resolvePath(path);
-    return `${this.serverUrl}${encodeXRootDPath(resolvedPath)}`;
+    // XRootD URLs require a double slash before the path (root://host//path).
+    // resolvedPath always starts with '/', so prepending serverUrl (no trailing
+    // slash) with an extra '/' produces the required '//' separator.
+    return `${this.serverUrl}/${encodeXRootDPath(resolvedPath)}`;
   }
 
   async listDirectory(path: string, useCache: boolean = true): Promise<DirectoryEntry[]> {
