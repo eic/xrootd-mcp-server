@@ -5,11 +5,18 @@ import { DirectoryCache } from './cache.js';
 const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
 
-// Percent-encode special characters in each path segment, preserving slashes.
-// This is needed when embedding a path in an XRootD URL (e.g. for xrdcp) so
-// that characters like '=', '+', '#' are not misinterpreted by XRootD's URL parser.
+// Percent-encode only characters that would be misinterpreted by XRootD's URL
+// parser when embedding a path in an xrdcp URL.  Only '?', '#', and '%' itself
+// need encoding in path segments; characters like '=', '+', '-' are safe and
+// must NOT be encoded (e.g. "minQ2=1" or "xAngle=-0.025" in directory names).
 function encodeXRootDPath(path: string): string {
-  return path.split('/').map(segment => encodeURIComponent(segment)).join('/');
+  return path.split('/').map(segment =>
+    segment
+      .replace(/%/g, '%25')
+      .replace(/\?/g, '%3F')
+      .replace(/#/g, '%23')
+      .replace(/ /g, '%20')
+  ).join('/');
 }
 
 export interface FileInfo {
