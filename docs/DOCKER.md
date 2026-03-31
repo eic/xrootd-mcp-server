@@ -258,9 +258,18 @@ spec:
           exec:
             command:
             - node
+            - -e
+            - console.log('healthy')
+          initialDelaySeconds: 5
+          periodSeconds: 30
+        readinessProbe:
+          exec:
+            command:
+            - node
             - /app/healthcheck.js
           initialDelaySeconds: 5
           periodSeconds: 30
+          timeoutSeconds: 10
 ```
 
 ## Troubleshooting

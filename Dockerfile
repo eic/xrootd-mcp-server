@@ -46,7 +46,7 @@ RUN chown -R node:node /app
 USER node
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=15s --start-period=5s --retries=3 \
     CMD node /app/healthcheck.js || exit 1
 
 # Environment variables with defaults
