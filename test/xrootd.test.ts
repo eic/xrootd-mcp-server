@@ -192,15 +192,17 @@ describe('XRootD MCP Server Integration Tests', () => {
   describe('File Statistics', () => {
     it('should get statistics for EVGEN directory', { timeout: 90000 }, async () => {
       try {
-        const result: any = await client.callTool({
+        const result = await client.callTool({
           name: 'get_statistics',
           arguments: { path: 'EVGEN' },
-        });
+        }) as CallToolResult;
         
         assert.ok(result.content);
         assert.ok(result.content.length > 0);
         
-        const text = result.content[0].text;
+        const content0 = result.content[0];
+        assert.strictEqual(content0.type, 'text', 'Expected text content type');
+        const text = content0.text;
         
         // Handle case where the tool returns an error message
         if (text.startsWith('Error:')) {
@@ -259,25 +261,25 @@ describe('XRootD MCP Server Integration Tests', () => {
 
   describe('Smart Filtering', () => {
     it('should filter by file size', async () => {
-      const result: any = await client.callTool({
+      const result = await client.callTool({
         name: 'filter_files',
         arguments: {
           path: '/',
           minSize: 1000000, // 1 MB
         },
-      });
+      }) as CallToolResult;
       
       assert.ok(result.content);
     });
 
     it('should filter by modification time', async () => {
-      const result: any = await client.callTool({
+      const result = await client.callTool({
         name: 'filter_files',
         arguments: {
           path: '/',
           modifiedAfter: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
         },
-      });
+      }) as CallToolResult;
       
       assert.ok(result.content);
     });
@@ -326,16 +328,18 @@ describe('XRootD MCP Server Integration Tests', () => {
 
     for (const { label, path } of specialCharPaths) {
       it(`should pass path with ${label} to xrdfs without shell error`, async () => {
-        const result: any = await client.callTool({
+        const result = await client.callTool({
           name: 'list_directory',
           arguments: { path },
-        });
+        }) as CallToolResult;
         // The tool should return an error response (path doesn't exist on server),
         // but NOT a spawn/shell error caused by unescaped special characters.
         assert.ok(result.content);
         assert.ok(result.content.length > 0);
         if (result.isError) {
-          const errorText: string = result.content[0].text;
+          const content0 = result.content[0];
+          assert.strictEqual(content0.type, 'text', 'Expected text error content');
+          const errorText: string = content0.text;
           // Must be an xrootd path error, not a shell metacharacter error
           assert.ok(
             !errorText.includes('spawn') && !errorText.includes('syntax error'),
@@ -346,13 +350,15 @@ describe('XRootD MCP Server Integration Tests', () => {
     }
 
     it('should pass search pattern with equal sign to xrdfs find without shell error', async () => {
-      const result: any = await client.callTool({
+      const result = await client.callTool({
         name: 'search_files',
         arguments: { pattern: 'run=*.root', basePath: '/' },
-      });
+      }) as CallToolResult;
       assert.ok(result.content);
       if (result.isError) {
-        const errorText: string = result.content[0].text;
+        const content0 = result.content[0];
+        assert.strictEqual(content0.type, 'text', 'Expected text error content');
+        const errorText: string = content0.text;
         assert.ok(
           !errorText.includes('spawn') && !errorText.includes('syntax error'),
           `Unexpected shell error for pattern with equal sign: ${errorText}`
