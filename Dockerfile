@@ -37,14 +37,17 @@ RUN npm ci --production --ignore-scripts && \
 # Copy built application from builder
 COPY --from=builder /app/build ./build
 
+# Copy health check script
+COPY healthcheck.js ./
+
 # Use existing node user (UID 1000)
 RUN chown -R node:node /app
 
 USER node
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD node -e "console.log('healthy')" || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD node /app/healthcheck.js || exit 1
 
 # Environment variables with defaults
 ENV NODE_ENV=production \
