@@ -240,7 +240,6 @@ spec:
       - name: xrootd-mcp-server
         image: ghcr.io/eic/xrootd-mcp-server:latest
         stdin: true
-        tty: true
         env:
         - name: XROOTD_SERVER
           value: "root://dtn-eic.jlab.org"
@@ -263,6 +262,14 @@ spec:
             - console.log('healthy')
           initialDelaySeconds: 5
           periodSeconds: 30
+        readinessProbe:
+          exec:
+            command:
+            - node
+            - /app/healthcheck.js
+          initialDelaySeconds: 5
+          periodSeconds: 30
+          timeoutSeconds: 10
 ```
 
 ## Troubleshooting
