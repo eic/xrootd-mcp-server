@@ -342,7 +342,7 @@ export class XRootDClient {
           // For non-recursive, filter by pattern
           if (!recursive && pattern !== '*') {
             const fileName = path.split('/').pop() || '';
-            const globRegex = this.globToRegex(pattern);
+            const globRegex = globToRegex(pattern);
             if (!globRegex.test(fileName)) continue;
           }
           
@@ -389,10 +389,6 @@ export class XRootDClient {
         await this.searchFilesRecursive(fullPath, regex, results, recursive);
       }
     }
-  }
-
-  private globToRegex(glob: string): RegExp {
-    return globToRegex(glob);
   }
 
   // Get directory statistics
@@ -477,7 +473,7 @@ export class XRootDClient {
       
       // Name pattern filter
       if (filter.namePattern) {
-        const regex = this.globToRegex(filter.namePattern);
+        const regex = globToRegex(filter.namePattern);
         if (!regex.test(entry.name)) {
           return false;
         }
