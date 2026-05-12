@@ -63,7 +63,12 @@ jobs:
         env:
           XROOTD_SERVER: root://dtn-eic.jlab.org
           XROOTD_BASE_DIR: /volatile/eic/EPIC
-        run: npm run test:coverage
+        run: |
+          if [ "${{ matrix.node-version }}" = "26" ]; then
+            npm test
+          else
+            npm run test:coverage
+          fi
         timeout-minutes: 10
 
       - name: Generate test summary
