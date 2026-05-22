@@ -5,7 +5,6 @@ services:
     image: ghcr.io/eic/xrootd-mcp-server:latest
     container_name: xrootd-mcp-server
     stdin_open: true
-    tty: true
     environment:
       # Required: XRootD server URL
       XROOTD_SERVER: ${XROOTD_SERVER:-root://dtn-eic.jlab.org}
