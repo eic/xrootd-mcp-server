@@ -2,6 +2,8 @@
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
+import { createServer as createHttpServer, IncomingMessage, ServerResponse } from 'node:http';
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
@@ -196,17 +198,8 @@ function getClient(serverName?: string): ServerEntry {
   return servers.values().next().value as ServerEntry;
 }
 
-const server = new Server(
-  {
-    name: 'xrootd-mcp-server',
-    version: '0.1.0',
-  },
-  {
-    capabilities: {
-      tools: {},
-    },
-  }
-);
+// The MCP Server is created per connection in createServer() (see below),
+// so concurrent SSE clients each get their own Server instance.
 
 // Log server info for debugging
 console.error(`Server: xrootd-mcp-server v0.1.0`);
@@ -644,7 +637,13 @@ const tools: Tool[] = [
   },
 ];
 
-server.setRequestHandler(ListToolsRequestSchema, async () => {
+function createServer(): Server {
+  const server = new Server(
+    { name: 'xrootd-mcp-server', version: '0.1.0' },
+    { capabilities: { tools: {} } }
+  );
+
+  server.setRequestHandler(ListToolsRequestSchema, async () => {
   return { tools };
 });
 
@@ -1135,6 +1134,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 });
 
+  return server;
+}
+
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 Bytes';
   
@@ -1145,15 +1147,84 @@ function formatBytes(bytes: number): string {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
 }
 
-async function main() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  
-  console.error('XRootD MCP Server running on stdio');
+function logServerSummary() {
   console.error(`Configured servers: ${Array.from(servers.keys()).join(', ')}`);
   for (const [srvName, { client }] of servers.entries()) {
     const stats = client.getCacheStats();
     console.error(`  [${srvName}] cache entries: ${stats.size}`);
+  }
+}
+
+async function runStdio() {
+  const server = createServer();
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+
+  console.error('XRootD MCP Server running on stdio');
+  logServerSummary();
+}
+
+async function runSse() {
+  const host = process.env.MCP_HOST || '127.0.0.1';
+  const port = parseInt(process.env.MCP_PORT || '9102', 10);
+
+  // Active SSE sessions keyed by transport.sessionId.
+  const transports = new Map<string, SSEServerTransport>();
+
+  const httpServer = createHttpServer(async (req: IncomingMessage, res: ServerResponse) => {
+    const url = new URL(req.url || '/', `http://${host}:${port}`);
+
+    if (req.method === 'GET' && url.pathname === '/sse') {
+      const transport = new SSEServerTransport('/messages', res);
+      const server = createServer();
+      transports.set(transport.sessionId, transport);
+      res.on('close', () => {
+        transports.delete(transport.sessionId);
+      });
+      try {
+        await server.connect(transport);
+      } catch (error: any) {
+        console.error('Error establishing SSE connection:', error?.message ?? error);
+        transports.delete(transport.sessionId);
+      }
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/messages') {
+      const sessionId = url.searchParams.get('sessionId');
+      const transport = sessionId ? transports.get(sessionId) : undefined;
+      if (!transport) {
+        res.writeHead(400, { 'Content-Type': 'text/plain' });
+        res.end('No transport found for sessionId');
+        return;
+      }
+      await transport.handlePostMessage(req, res);
+      return;
+    }
+
+    res.writeHead(404, { 'Content-Type': 'text/plain' });
+    res.end('Not found');
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    httpServer.once('error', reject);
+    httpServer.listen(port, host, () => {
+      httpServer.removeListener('error', reject);
+      resolve();
+    });
+  });
+
+  console.error(`XRootD MCP Server running on SSE at http://${host}:${port}/sse`);
+  logServerSummary();
+}
+
+async function main() {
+  const transportMode = (process.env.MCP_TRANSPORT || 'stdio').trim().toLowerCase();
+
+  if (transportMode === 'sse') {
+    await runSse();
+  } else {
+    await runStdio();
   }
 }
 
