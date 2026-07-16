@@ -8,8 +8,8 @@
     "xrootd-mcp-server": "./build/src/index.js"
   },
   "scripts": {
-    "build": "tsc && chmod +x build/src/index.js",
-    "watch": "tsc --watch",
+    "build": "npm exec --no -- tsc && chmod +x build/src/index.js",
+    "watch": "npm exec --no -- tsc --watch",
     "prepack": "npm run build",
     "test": "npm run build && node --test build/test/*.test.js",
     "test:integration": "npm run test",
