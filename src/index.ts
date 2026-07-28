@@ -1164,15 +1164,31 @@ async function runStdio() {
   logServerSummary();
 }
 
+const LOOPBACK_HOSTS = new Set(['127.0.0.1', '::1', 'localhost']);
+
 async function runSse() {
   const host = process.env.MCP_HOST || '127.0.0.1';
-  const port = parseInt(process.env.MCP_PORT || '9102', 10);
+  const portEnv = process.env.MCP_PORT?.trim();
+  const port = portEnv ? Number(portEnv) : 9102;
+
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error(`MCP_PORT must be an integer between 1 and 65535, got '${portEnv}'`);
+  }
 
   // Active SSE sessions keyed by transport.sessionId.
   const transports = new Map<string, SSEServerTransport>();
 
   const httpServer = createHttpServer(async (req: IncomingMessage, res: ServerResponse) => {
-    const url = new URL(req.url || '/', `http://${host}:${port}`);
+    // A fixed base keeps parsing independent of the bind address (IPv6 hosts
+    // would need brackets) and of malformed request targets.
+    let url: URL;
+    try {
+      url = new URL(req.url || '/', 'http://localhost');
+    } catch {
+      res.writeHead(400, { 'Content-Type': 'text/plain' });
+      res.end('Bad request');
+      return;
+    }
 
     if (req.method === 'GET' && url.pathname === '/sse') {
       const transport = new SSEServerTransport('/messages', res);
@@ -1198,7 +1214,17 @@ async function runSse() {
         res.end('No transport found for sessionId');
         return;
       }
-      await transport.handlePostMessage(req, res);
+      try {
+        await transport.handlePostMessage(req, res);
+      } catch (error: any) {
+        console.error('Error handling message:', error?.message ?? error);
+        if (!res.headersSent) {
+          res.writeHead(500, { 'Content-Type': 'text/plain' });
+        }
+        if (!res.writableEnded) {
+          res.end('Internal server error');
+        }
+      }
       return;
     }
 
@@ -1215,6 +1241,13 @@ async function runSse() {
   });
 
   console.error(`XRootD MCP Server running on SSE at http://${host}:${port}/sse`);
+  if (!LOOPBACK_HOSTS.has(host)) {
+    console.error(
+      `WARNING: MCP_HOST=${host} exposes the full tool surface on a non-loopback ` +
+        'interface with no authentication. Bind to 127.0.0.1 and use a tunnel or an ' +
+        'authenticating proxy for remote access.'
+    );
+  }
   logServerSummary();
 }
 
