@@ -8,9 +8,10 @@
     "xrootd-mcp-server": "./build/src/index.js"
   },
   "scripts": {
-    "build": "npm exec --no -- tsc && chmod +x build/src/index.js",
+    "build": "npm exec --no -- tsc && node -e \"require('fs').chmodSync('build/src/index.js', 0o755)\"",
     "watch": "npm exec --no -- tsc --watch",
     "prepack": "npm run build",
+    "prepare": "npm run build",
     "test": "npm run build && node --test build/test/*.test.js",
     "test:integration": "npm run test",
     "test:coverage": "npm run build && c8 --reporter=text --reporter=lcov --reporter=json-summary node --test build/test/*.test.js",

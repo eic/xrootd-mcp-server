@@ -8,8 +8,9 @@ WORKDIR /app
 # Copy package files
 COPY package*.json tsconfig.json ./
 
-# Install dependencies
-RUN npm ci
+# Install dependencies. --ignore-scripts skips the `prepare` hook, which would
+# run the build before the sources are copied in.
+RUN npm ci --ignore-scripts
 
 # Copy source code
 COPY src/ ./src/
