@@ -4,7 +4,7 @@ import { XRootDClient } from '../src/xrootd.js';
 import { ROOTAnalyzer, CopyRequiredError } from '../src/root-analysis.js';
 
 const XROOTD_SERVER = process.env.XROOTD_SERVER || 'root://dtn-eic.jlab.org';
-const TEST_ROOT_FILE = process.env.TEST_ROOT_FILE || 'SIDIS/pythia8NCDIS_18x275_Q2_1_10_y_0.01_0.95_tau-_00001.0000.eicrecon.tree.edm4eic.root';
+const TEST_ROOT_FILE = process.env.TEST_ROOT_FILE || 'SIDIS/pythia8NCDIS_18x275_Q2_1_10_y_0.01_0.95_tau-_00001.hepmc3.tree.root';
 
 function isCopyRequiredError(error: unknown): error is CopyRequiredError {
   return error instanceof CopyRequiredError;

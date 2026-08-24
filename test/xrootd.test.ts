@@ -250,7 +250,7 @@ describe('XRootD MCP Server Integration Tests', () => {
       const result = await client.callTool({
         name: 'extract_metadata',
         arguments: {
-          path: 'SIDIS/pythia8NCDIS_18x275_Q2_1_10_y_0.01_0.95_tau-_00001.0000.eicrecon.tree.edm4eic.root',
+          path: 'SIDIS/pythia8NCDIS_18x275_Q2_1_10_y_0.01_0.95_tau-_00001.hepmc3.tree.root',
         },
       }) as CallToolResult;
       

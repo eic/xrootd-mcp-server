@@ -67,7 +67,7 @@ npm run test:integration
 ### Run with Custom Server
 
 ```bash
-XROOTD_SERVER=root://your-server.edu XROOTD_BASE_DIR=/volatile/eic/EPIC/EVGEN npm test
+XROOTD_SERVER=root://your-server.edu XROOTD_BASE_DIR=/your/path npm test
 ```
 
 ## Test Configuration
