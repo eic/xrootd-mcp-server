@@ -5,7 +5,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import type { Tool, CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
 const TEST_SERVER = process.env.XROOTD_SERVER || 'root://dtn-eic.jlab.org';
-const TEST_BASE_DIR = process.env.XROOTD_BASE_DIR || '/volatile/eic/EPIC';
+const TEST_BASE_DIR = process.env.XROOTD_BASE_DIR || '/volatile/eic/EPIC/EVGEN';
 
 describe('XRootD MCP Server Integration Tests', () => {
   let client: Client;
@@ -72,10 +72,10 @@ describe('XRootD MCP Server Integration Tests', () => {
       assert.equal(result.content[0].type, 'text');
     });
 
-    it('should list EVGEN directory', async () => {
+    it('should list base directory root', async () => {
       const result = await client.callTool({
         name: 'list_directory',
-        arguments: { path: 'EVGEN' },
+        arguments: { path: '/' },
       }) as CallToolResult;
       
       assert.ok(result.content);
@@ -96,10 +96,10 @@ describe('XRootD MCP Server Integration Tests', () => {
   });
 
   describe('File Information', () => {
-    it('should get info for EVGEN directory', async () => {
+    it('should get info for base directory root', async () => {
       const result = await client.callTool({
         name: 'get_file_info',
-        arguments: { path: 'EVGEN' },
+        arguments: { path: '/' },
       }) as CallToolResult;
       
       assert.ok(result.content);
@@ -110,7 +110,7 @@ describe('XRootD MCP Server Integration Tests', () => {
       
       // Handle case where the tool returns an error message
       if (text.startsWith('Error:')) {
-        console.error('  ⊘ EVGEN directory not accessible:', text);
+        console.error('  ⊘ Base directory root not accessible:', text);
         return;
       }
       
@@ -139,7 +139,7 @@ describe('XRootD MCP Server Integration Tests', () => {
           name: 'search_files',
           arguments: {
             path: '/',
-            pattern: 'EVGEN',
+            pattern: '*.root',
           },
         }) as CallToolResult;
         
@@ -160,7 +160,7 @@ describe('XRootD MCP Server Integration Tests', () => {
           name: 'search_files',
           arguments: {
             path: '/',
-            pattern: 'EV.*',
+            pattern: '.*\\.root',
             useRegex: true,
           },
         }) as CallToolResult;
@@ -190,11 +190,11 @@ describe('XRootD MCP Server Integration Tests', () => {
   });
 
   describe('File Statistics', () => {
-    it('should get statistics for EVGEN directory', { timeout: 90000 }, async () => {
+    it('should get statistics for base directory root', { timeout: 90000 }, async () => {
       try {
         const result = await client.callTool({
           name: 'get_statistics',
-          arguments: { path: 'EVGEN' },
+          arguments: { path: '/' },
         }) as CallToolResult;
         
         assert.ok(result.content);
@@ -206,7 +206,7 @@ describe('XRootD MCP Server Integration Tests', () => {
         
         // Handle case where the tool returns an error message
         if (text.startsWith('Error:')) {
-          console.error('  ⊘ EVGEN statistics not available:', text);
+          console.error('  ⊘ Base directory statistics not available:', text);
           return;
         }
         
@@ -250,7 +250,7 @@ describe('XRootD MCP Server Integration Tests', () => {
       const result = await client.callTool({
         name: 'extract_metadata',
         arguments: {
-          path: 'EVGEN/SIDIS/pythia8NCDIS_18x275_Q2_1_10_y_0.01_0.95_tau-_00001.0000.eicrecon.tree.edm4eic.root',
+          path: 'SIDIS/pythia8NCDIS_18x275_Q2_1_10_y_0.01_0.95_tau-_00001.0000.eicrecon.tree.edm4eic.root',
         },
       }) as CallToolResult;
       
@@ -374,7 +374,7 @@ describe('XRootD MCP Server Integration Tests', () => {
     it('should not percent-encode "=" in paths passed to xrdcp', async () => {
       const result: any = await client.callTool({
         name: 'read_file',
-        arguments: { path: 'RECO/26.03.0/epic_craterlake/DIS/NC/10x100/minQ2=1/nonexistent.root' },
+        arguments: { path: 'minQ2=1/nonexistent.root' },
       });
       assert.ok(result.content);
       assert.ok(result.content.length > 0);
@@ -397,7 +397,7 @@ describe('XRootD MCP Server Integration Tests', () => {
     it('should not produce a relative-path error when reading a file', async () => {
       const result: any = await client.callTool({
         name: 'read_file',
-        arguments: { path: `${TEST_BASE_DIR}/nonexistent-test-file.root` },
+        arguments: { path: 'nonexistent-test-file.root' },
       });
       assert.ok(result.content);
       assert.ok(result.content.length > 0);
@@ -423,7 +423,7 @@ describe('XRootD MCP Server Integration Tests', () => {
       // would 404, so the error should always be a CopyRequiredError message.
       const result: any = await client.callTool({
         name: 'analyze_root_file',
-        arguments: { path: `${TEST_BASE_DIR}/nonexistent-test-file.root` },
+        arguments: { path: 'nonexistent-test-file.root' },
       });
       assert.ok(result.content);
       assert.ok(result.content.length > 0);
@@ -439,7 +439,7 @@ describe('XRootD MCP Server Integration Tests', () => {
     it('get_event_statistics should attempt HTTP access and report copy required when HTTP fails', async () => {
       const result: any = await client.callTool({
         name: 'get_event_statistics',
-        arguments: { path: `${TEST_BASE_DIR}/nonexistent-test-file.root` },
+        arguments: { path: 'nonexistent-test-file.root' },
       });
       assert.ok(result.content);
       assert.ok(result.isError, 'Expected an error response when HTTP access fails');
@@ -453,7 +453,7 @@ describe('XRootD MCP Server Integration Tests', () => {
     it('analyze_root_file with allow_copy: true should attempt xrdcp (not CopyRequiredError)', async () => {
       const result: any = await client.callTool({
         name: 'analyze_root_file',
-        arguments: { path: `${TEST_BASE_DIR}/nonexistent-test-file.root`, allow_copy: true },
+        arguments: { path: 'nonexistent-test-file.root', allow_copy: true },
       });
       assert.ok(result.content);
       assert.ok(result.content.length > 0);
@@ -473,11 +473,11 @@ describe('XRootD MCP Server Integration Tests', () => {
 describe('Large Directory Event Counting', () => {
   // Reproduce the scenario where an LLM hits context limits due to a large number
   // of files in a directory and then wants to count events in the first file.
-  // Directory: RECO/26.03.0/epic_craterlake/DIS/NC/10x100/minQ2=1
+  // Directory: SIDIS
   let largeClient: Client;
   let largeTransport: StdioClientTransport;
 
-  const LARGE_DIR = 'RECO/26.03.0/epic_craterlake/DIS/NC/10x100/minQ2=1';
+  const LARGE_DIR = 'SIDIS';
   // This is an EIC production directory on dtn-eic.jlab.org that contains hundreds
   // of ROOT files. Tests gracefully skip when the server or path is not accessible.
 

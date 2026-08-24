@@ -67,7 +67,7 @@ npm run test:integration
 ### Run with Custom Server
 
 ```bash
-XROOTD_SERVER=root://your-server.edu XROOTD_BASE_DIR=/your/path npm test
+XROOTD_SERVER=root://your-server.edu XROOTD_BASE_DIR=/volatile/eic/EPIC/EVGEN npm test
 ```
 
 ## Test Configuration
@@ -75,7 +75,7 @@ XROOTD_SERVER=root://your-server.edu XROOTD_BASE_DIR=/your/path npm test
 Tests use environment variables:
 
 - `XROOTD_SERVER`: XRootD server URL (default: `root://dtn-eic.jlab.org`)
-- `XROOTD_BASE_DIR`: Base directory path (default: `/volatile/eic/EPIC`)
+- `XROOTD_BASE_DIR`: Base directory path (default: `/volatile/eic/EPIC/EVGEN`)
 
 ## CI/CD Integration
 
@@ -145,7 +145,7 @@ If tests fail with connection errors:
 
 1. Check server availability:
    ```bash
-   xrdfs root://dtn-eic.jlab.org ls /volatile/eic/EPIC
+   xrdfs root://dtn-eic.jlab.org ls /volatile/eic/EPIC/EVGEN
    ```
 
 2. Verify network connectivity
