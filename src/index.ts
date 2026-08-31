@@ -3,6 +3,7 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { createServer as createHttpServer, IncomingMessage, ServerResponse } from 'node:http';
 import {
   CallToolRequestSchema,
@@ -202,7 +203,7 @@ function getClient(serverName?: string): ServerEntry {
 // so concurrent SSE clients each get their own Server instance.
 
 // Log server info for debugging
-console.error(`Server: xrootd-mcp-server v0.1.0`);
+console.error(`Server: xrootd-mcp-server v0.2.0`); // keep in sync with package.json
 console.error(`Capabilities: tools (17 available)`);
 
 const tools: Tool[] = [
@@ -639,7 +640,7 @@ const tools: Tool[] = [
 
 function createServer(): Server {
   const server = new Server(
-    { name: 'xrootd-mcp-server', version: '0.1.0' },
+    { name: 'xrootd-mcp-server', version: '0.2.0' }, // keep in sync with package.json
     { capabilities: { tools: {} } }
   );
 
@@ -1166,14 +1167,29 @@ async function runStdio() {
 
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', '::1', 'localhost']);
 
-async function runSse() {
+function readHttpEndpoint(defaultPort: number): { host: string; port: number } {
   const host = process.env.MCP_HOST || '127.0.0.1';
   const portEnv = process.env.MCP_PORT?.trim();
-  const port = portEnv ? Number(portEnv) : 9102;
+  const port = portEnv ? Number(portEnv) : defaultPort;
 
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     throw new Error(`MCP_PORT must be an integer between 1 and 65535, got '${portEnv}'`);
   }
+  return { host, port };
+}
+
+function warnIfExposed(host: string): void {
+  if (!LOOPBACK_HOSTS.has(host)) {
+    console.error(
+      `WARNING: MCP_HOST=${host} exposes the full tool surface on a non-loopback ` +
+        'interface with no authentication. Bind to 127.0.0.1 and use a tunnel or an ' +
+        'authenticating proxy for remote access.'
+    );
+  }
+}
+
+async function runSse() {
+  const { host, port } = readHttpEndpoint(9102);
 
   // Active SSE sessions keyed by transport.sessionId.
   const transports = new Map<string, SSEServerTransport>();
@@ -1241,23 +1257,96 @@ async function runSse() {
   });
 
   console.error(`XRootD MCP Server running on SSE at http://${host}:${port}/sse`);
-  if (!LOOPBACK_HOSTS.has(host)) {
-    console.error(
-      `WARNING: MCP_HOST=${host} exposes the full tool surface on a non-loopback ` +
-        'interface with no authentication. Bind to 127.0.0.1 and use a tunnel or an ' +
-        'authenticating proxy for remote access.'
-    );
-  }
+  warnIfExposed(host);
+  logServerSummary();
+}
+
+const MCP_PATH = '/mcp';
+
+// Stateless streamable HTTP: a fresh Server + transport per request.  All tool
+// state (servers, caches) is module-level, so sessions would add only
+// bookkeeping and "session not found" failures after a restart.
+async function runStreamableHttp() {
+  const { host, port } = readHttpEndpoint(9102);
+
+  const httpServer = createHttpServer(async (req: IncomingMessage, res: ServerResponse) => {
+    let url: URL;
+    try {
+      url = new URL(req.url || '/', 'http://localhost');
+    } catch {
+      res.writeHead(400, { 'Content-Type': 'text/plain' });
+      res.end('Bad request');
+      return;
+    }
+
+    // Accept /mcp and /mcp/ alike — clients differ.
+    const path = url.pathname.replace(/\/+$/, '') || '/';
+    if (path !== MCP_PATH) {
+      res.writeHead(404, { 'Content-Type': 'text/plain' });
+      res.end('Not found');
+      return;
+    }
+
+    const server = createServer();
+    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+    res.on('close', () => {
+      void transport.close();
+      void server.close();
+    });
+
+    try {
+      await server.connect(transport);
+      await transport.handleRequest(req, res);
+    } catch (error: any) {
+      console.error('Error handling MCP request:', error?.message ?? error);
+      if (!res.headersSent) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+      }
+      if (!res.writableEnded) {
+        res.end(
+          JSON.stringify({
+            jsonrpc: '2.0',
+            error: { code: -32603, message: 'Internal server error' },
+            id: null,
+          })
+        );
+      }
+    }
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    httpServer.once('error', reject);
+    httpServer.listen(port, host, () => {
+      httpServer.removeListener('error', reject);
+      resolve();
+    });
+  });
+
+  console.error(
+    `XRootD MCP Server running on streamable HTTP at http://${host}:${port}${MCP_PATH}`
+  );
+  warnIfExposed(host);
   logServerSummary();
 }
 
 async function main() {
   const transportMode = (process.env.MCP_TRANSPORT || 'stdio').trim().toLowerCase();
 
-  if (transportMode === 'sse') {
-    await runSse();
-  } else {
-    await runStdio();
+  switch (transportMode) {
+    case 'http':
+    case 'streamable-http':
+    case 'streamablehttp':
+      await runStreamableHttp();
+      break;
+    case 'sse':
+      await runSse();
+      break;
+    case 'stdio':
+    case '':
+      await runStdio();
+      break;
+    default:
+      throw new Error(`Unknown MCP_TRANSPORT '${transportMode}' (use: stdio | http | sse)`);
   }
 }
 
