@@ -204,7 +204,7 @@ function getClient(serverName?: string): ServerEntry {
 
 // Log server info for debugging
 console.error(`Server: xrootd-mcp-server v0.2.0`); // keep in sync with package.json
-console.error(`Capabilities: tools (17 available)`);
+console.error('Capabilities: tools');
 
 const tools: Tool[] = [
   {
