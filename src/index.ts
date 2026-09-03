@@ -1289,10 +1289,17 @@ async function runStreamableHttp() {
 
     const server = createServer();
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
-    res.on('close', () => {
-      void transport.close();
-      void server.close();
-    });
+
+    // handleRequest resolves once the response is fully written; 'close' only
+    // covers an early abort, so both run and must be idempotent.
+    let disposed = false;
+    const dispose = () => {
+      if (disposed) return;
+      disposed = true;
+      void transport.close().catch(() => {});
+      void server.close().catch(() => {});
+    };
+    res.on('close', dispose);
 
     try {
       await server.connect(transport);
@@ -1311,6 +1318,8 @@ async function runStreamableHttp() {
           })
         );
       }
+    } finally {
+      dispose();
     }
   });
 
