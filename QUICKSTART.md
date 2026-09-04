@@ -55,7 +55,16 @@ xrdfs $XROOTD_SERVER ls /
 
 ### Standalone Mode
 ```bash
-XROOTD_SERVER="root://dtn-eic.jlab.org" XROOTD_BASE_DIR="/volatile/eic/EPIC" node build/index.js
+XROOTD_SERVER="root://dtn-eic.jlab.org" XROOTD_BASE_DIR="/volatile/eic/EPIC" node build/src/index.js
+```
+
+### Streamable HTTP Mode
+
+For clients that connect over the network instead of spawning the server:
+
+```bash
+MCP_TRANSPORT=http XROOTD_SERVER="root://dtn-eic.jlab.org" node build/src/index.js
+# MCP endpoint: http://127.0.0.1:9102/mcp  (MCP_HOST / MCP_PORT to change)
 ```
 
 ### With Claude Desktop

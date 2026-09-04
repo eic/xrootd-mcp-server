@@ -59,6 +59,36 @@ When `XROOTD_BASE_DIR` is set:
 - Absolute paths must be within the base directory (access control)
 - For example, with base `/volatile/eic/EPIC`, the path `EVGEN` refers to `/volatile/eic/EPIC/EVGEN`
 
+### Transports
+
+The server speaks **stdio** by default (for clients that spawn it
+themselves).  Two HTTP transports are available via `MCP_TRANSPORT`:
+
+```bash
+# Streamable HTTP: MCP endpoint at http://127.0.0.1:9102/mcp
+MCP_TRANSPORT=http XROOTD_SERVER="root://dtn-eic.jlab.org" node build/src/index.js
+
+# Legacy SSE: endpoints at /sse and /messages
+MCP_TRANSPORT=sse XROOTD_SERVER="root://dtn-eic.jlab.org" node build/src/index.js
+```
+
+`MCP_HOST` (default `127.0.0.1`) and `MCP_PORT` (default `9102`) control the
+bind address.  The server binds loopback by default; binding any other
+address prints a warning because the tools carry no authentication.
+
+An HTTP client config then looks like:
+
+```json
+{
+  "mcpServers": {
+    "xrootd": {
+      "type": "http",
+      "url": "http://127.0.0.1:9102/mcp"
+    }
+  }
+}
+```
+
 ### Caching
 
 Directory listing results are cached for improved performance:

@@ -64,5 +64,7 @@ LABEL org.opencontainers.image.title="XRootD MCP Server" \
       org.opencontainers.image.source="https://github.com/wdconinc/xrootd-mcp-server" \
       org.opencontainers.image.licenses="MIT"
 
-# Run the application
+EXPOSE 9102
+
+# stdio by default; HTTP: docker run -p 9102:9102 -e MCP_TRANSPORT=http -e MCP_HOST=0.0.0.0 ...
 CMD ["node", "build/src/index.js"]
