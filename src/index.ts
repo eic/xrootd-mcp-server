@@ -10,6 +10,7 @@ import {
   ListToolsRequestSchema,
   Tool,
 } from '@modelcontextprotocol/sdk/types.js';
+import { createRequire } from 'node:module';
 import { XRootDClient } from './xrootd.js';
 import { ROOTAnalyzer } from './root-analysis.js';
 
@@ -202,8 +203,14 @@ function getClient(serverName?: string): ServerEntry {
 // The MCP Server is created per connection in createServer() (see below),
 // so concurrent SSE clients each get their own Server instance.
 
+// Name and version come from the manifest so they live in one place only.
+// This file builds to build/src/, so the manifest is two levels up.
+const pkg = createRequire(import.meta.url)('../../package.json') as {
+  name: string;
+  version: string;
+};
+
 // Log server info for debugging
-console.error(`Server: xrootd-mcp-server v0.2.0`); // keep in sync with package.json
 console.error('Capabilities: tools');
 
 const tools: Tool[] = [
@@ -640,7 +647,7 @@ const tools: Tool[] = [
 
 function createServer(): Server {
   const server = new Server(
-    { name: 'xrootd-mcp-server', version: '0.2.0' }, // keep in sync with package.json
+    { name: pkg.name, version: pkg.version },
     { capabilities: { tools: {} } }
   );
 
