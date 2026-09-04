@@ -100,10 +100,15 @@ jobs:
       - name: Check for existing release
         id: existing_release
         uses: actions/github-script@v8
+        env:
+          TAG: ${{ steps.version.outputs.version }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const tag = '${{ steps.version.outputs.version }}';
+            const tag = process.env.TAG;
+            if (!tag) {
+              throw new Error('Missing tag version output');
+            }
             try {
               const { data } = await github.rest.repos.getReleaseByTag({
                 owner: context.repo.owner,
@@ -124,7 +129,7 @@ jobs:
 
       - name: Create Release
         id: create_release
-        if: ${{ steps.existing_release.outputs.exists != 'true' }}
+        if: steps.existing_release.outputs.exists != 'true'
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -137,12 +142,17 @@ jobs:
 
       - name: Set release upload URL
         id: release_upload_url
+        env:
+          EXISTS: ${{ steps.existing_release.outputs.exists }}
+          EXISTING_UPLOAD_URL: ${{ steps.existing_release.outputs.upload_url }}
+          CREATED_UPLOAD_URL: ${{ steps.create_release.outputs.upload_url }}
         run: |
-          if [ "${{ steps.existing_release.outputs.exists }}" = "true" ]; then
-            echo "upload_url=${{ steps.existing_release.outputs.upload_url }}" >> "$GITHUB_OUTPUT"
+          if [ "$EXISTS" = "true" ]; then
+            upload_url="$EXISTING_UPLOAD_URL"
           else
-            echo "upload_url=${{ steps.create_release.outputs.upload_url }}" >> "$GITHUB_OUTPUT"
+            upload_url="$CREATED_UPLOAD_URL"
           fi
+          echo "upload_url=${upload_url%%\{*}" >> "$GITHUB_OUTPUT"
 
   build-artifacts:
     needs: create-release
