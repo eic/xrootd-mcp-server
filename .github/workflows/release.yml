@@ -20,6 +20,12 @@ permissions:
 
 jobs:
   create-release:
+    # On workflow_run: only proceed when docker.yml completed successfully for a release event
+    # On push/tags or workflow_dispatch: always proceed
+    if: |
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'release')
     runs-on: ubuntu-latest
     outputs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
@@ -156,35 +162,43 @@ jobs:
         run: |
           VERSION="${{ needs.create-release.outputs.version }}"
           VERSION_NO_V="${VERSION#v}"
-           
+
           echo "Checking for Docker image with tag: $VERSION_NO_V"
-           
-          # Try to pull the image (may take a few attempts)
-          # Should be available immediately since docker.yml completed before this workflow started
-          MAX_ATTEMPTS=5
+
+          # When triggered via workflow_run, docker.yml has already completed so
+          # the image should be available immediately.  For push/tags and
+          # workflow_dispatch paths the build may still be in progress, so use
+          # more generous retry parameters.
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            MAX_ATTEMPTS=5
+            SLEEP_SECS=10
+          else
+            MAX_ATTEMPTS=20
+            SLEEP_SECS=30
+          fi
+
           ATTEMPT=1
-           
           while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
             echo "Attempt $ATTEMPT of $MAX_ATTEMPTS"
-             
+
             if docker pull ghcr.io/${{ github.repository }}:$VERSION_NO_V; then
               echo "✅ Docker image successfully published with tag: $VERSION_NO_V"
-               
+
               # Also verify latest tag for non-prerelease
               if [[ ! "$VERSION" =~ (alpha|beta|rc) ]]; then
                 if docker pull ghcr.io/${{ github.repository }}:latest; then
                   echo "✅ Docker image also tagged as 'latest'"
                 fi
               fi
-               
+
               exit 0
             fi
-             
-            echo "Image not yet available, waiting..."
-            sleep 10
+
+            echo "Image not yet available, waiting ${SLEEP_SECS}s..."
+            sleep $SLEEP_SECS
             ATTEMPT=$((ATTEMPT + 1))
           done
-           
+
           echo "❌ Failed to verify Docker image after $MAX_ATTEMPTS attempts"
           echo "The image may still be building. Check the Docker workflow: ${{ github.server_url }}/${{ github.repository }}/actions"
           exit 1
