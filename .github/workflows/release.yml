@@ -173,8 +173,8 @@ jobs:
             MAX_ATTEMPTS=5
             SLEEP_SECS=10
           else
-            MAX_ATTEMPTS=20
-            SLEEP_SECS=30
+            MAX_ATTEMPTS=5
+            SLEEP_SECS=10
           fi
 
           ATTEMPT=1
