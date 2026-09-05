@@ -20,12 +20,11 @@ permissions:
 
 jobs:
   create-release:
-    # On workflow_run: only proceed when docker.yml completed successfully for a release event
+    # On workflow_run: only proceed when docker.yml completed successfully
     # On push/tags or workflow_dispatch: always proceed
     if: |
       github.event_name != 'workflow_run' ||
-      (github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.event == 'release')
+      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     outputs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
