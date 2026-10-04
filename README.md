@@ -26,8 +26,8 @@ A Model Context Protocol (MCP) server that provides access to XRootD file system
 docker pull ghcr.io/eic/xrootd-mcp-server:latest
 
 docker run -i --rm \
-  -e XROOTD_SERVER="root://dtn-eic.jlab.org" \
-  -e XROOTD_BASE_DIR="/volatile/eic/EPIC" \
+  -e XROOTD_SERVER="root://dtn2304.jlab.org:8443" \
+  -e XROOTD_BASE_DIR="/jlab-osdf-ro/eic/EPIC/volatile" \
   ghcr.io/eic/xrootd-mcp-server:latest
 ```
 
@@ -45,19 +45,19 @@ npm run build
 Set the XRootD server URL using the `XROOTD_SERVER` environment variable:
 
 ```bash
-export XROOTD_SERVER="root://dtn-eic.jlab.org"
+export XROOTD_SERVER="root://dtn2304.jlab.org:8443"
 ```
 
 Optionally, set a base directory to restrict access and simplify paths:
 
 ```bash
-export XROOTD_BASE_DIR="/volatile/eic/EPIC"
+export XROOTD_BASE_DIR="/jlab-osdf-ro/eic/EPIC/volatile"
 ```
 
 When `XROOTD_BASE_DIR` is set:
 - Relative paths are resolved relative to the base directory
 - Absolute paths must be within the base directory (access control)
-- For example, with base `/volatile/eic/EPIC`, the path `EVGEN` refers to `/volatile/eic/EPIC/EVGEN`
+- For example, with base `/jlab-osdf-ro/eic/EPIC/volatile`, the path `EVGEN` refers to `/jlab-osdf-ro/eic/EPIC/volatile/EVGEN`
 
 ### Transports
 
@@ -66,10 +66,10 @@ themselves).  Two HTTP transports are available via `MCP_TRANSPORT`:
 
 ```bash
 # Streamable HTTP: MCP endpoint at http://127.0.0.1:9102/mcp
-MCP_TRANSPORT=http XROOTD_SERVER="root://dtn-eic.jlab.org" node build/src/index.js
+MCP_TRANSPORT=http XROOTD_SERVER="root://dtn2304.jlab.org:8443" node build/src/index.js
 
 # Legacy SSE: endpoints at /sse and /messages
-MCP_TRANSPORT=sse XROOTD_SERVER="root://dtn-eic.jlab.org" node build/src/index.js
+MCP_TRANSPORT=sse XROOTD_SERVER="root://dtn2304.jlab.org:8443" node build/src/index.js
 ```
 
 `MCP_HOST` (default `127.0.0.1`) and `MCP_PORT` (default `9102`) control the
@@ -120,8 +120,8 @@ Add to your MCP client configuration:
       "command": "node",
       "args": ["/path/to/xrootd-mcp-server/build/index.js"],
       "env": {
-        "XROOTD_SERVER": "root://dtn-eic.jlab.org",
-        "XROOTD_BASE_DIR": "/volatile/eic/EPIC",
+        "XROOTD_SERVER": "root://dtn2304.jlab.org:8443",
+        "XROOTD_BASE_DIR": "/jlab-osdf-ro/eic/EPIC/volatile",
         "XROOTD_CACHE_ENABLED": "true",
         "XROOTD_CACHE_TTL": "60"
       }

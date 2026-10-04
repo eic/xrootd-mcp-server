@@ -160,7 +160,7 @@ List all available production campaigns.
 // List campaigns from RECO directory
 list_campaigns({ recoPath: "RECO" })
 
-// With base directory set to /volatile/eic/EPIC
+// With base directory set to /jlab-osdf-ro/eic/EPIC/volatile
 list_campaigns()  // Looks in base/RECO
 ```
 
@@ -176,7 +176,7 @@ list_campaigns()  // Looks in base/RECO
   "campaigns": [
     {
       "name": "25.10.2",
-      "path": "/volatile/eic/EPIC/RECO/25.10.2",
+      "path": "/jlab-osdf-ro/eic/EPIC/volatile/RECO/25.10.2",
       "modificationTime": "2025-11-06T23:11:52Z"
     },
     ...

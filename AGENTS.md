@@ -197,7 +197,7 @@ throw new Error('Operation failed');
 
 ### Directory Structure
 ```
-/volatile/eic/EPIC/
+/jlab-osdf-ro/eic/EPIC/volatile/
 ├── RECO/                    # Reconstructed data
 │   ├── 25.10.2/            # Campaign version
 │   │   ├── epic_craterlake/ # Detector configuration
@@ -249,21 +249,21 @@ throw new Error('Operation failed');
 
 ```bash
 # List directory
-xrdfs root://dtn-eic.jlab.org ls -l /volatile/eic/EPIC/RECO
+xrdfs root://dtn2304.jlab.org:8443 ls -l /jlab-osdf-ro/eic/EPIC/volatile/RECO
 
 # Get file info
-xrdfs root://dtn-eic.jlab.org stat /volatile/eic/EPIC/RECO/25.10.2
+xrdfs root://dtn2304.jlab.org:8443 stat /jlab-osdf-ro/eic/EPIC/volatile/RECO/25.10.2
 
 # Search for files
-xrdfs root://dtn-eic.jlab.org find /volatile/eic/EPIC/RECO -name "*.root"
+xrdfs root://dtn2304.jlab.org:8443 find /jlab-osdf-ro/eic/EPIC/volatile/RECO -name "*.root"
 ```
 
 ## Configuration
 
 ### Environment Variables
 ```bash
-XROOTD_SERVER="root://dtn-eic.jlab.org"  # Required
-XROOTD_BASE_DIR="/volatile/eic/EPIC"     # Optional, default: /
+XROOTD_SERVER="root://dtn2304.jlab.org:8443"  # Required
+XROOTD_BASE_DIR="/jlab-osdf-ro/eic/EPIC/volatile"     # Optional, default: /
 XROOTD_CACHE_ENABLED="true"              # Optional, default: true
 XROOTD_CACHE_TTL="60"                    # Optional, minutes, default: 60
 XROOTD_CACHE_MAX_SIZE="1000"             # Optional, max entries, default: 1000
@@ -277,8 +277,8 @@ XROOTD_CACHE_MAX_SIZE="1000"             # Optional, max entries, default: 1000
       "command": "node",
       "args": ["/path/to/build/index.js"],
       "env": {
-        "XROOTD_SERVER": "root://dtn-eic.jlab.org",
-        "XROOTD_BASE_DIR": "/volatile/eic/EPIC",
+        "XROOTD_SERVER": "root://dtn2304.jlab.org:8443",
+        "XROOTD_BASE_DIR": "/jlab-osdf-ro/eic/EPIC/volatile",
         "XROOTD_CACHE_TTL": "60"
       }
     }

@@ -82,8 +82,8 @@ function generateTestSummary() {
   // Test execution info
   summary += '### Test Execution\n\n';
   summary += `- **Test Suite**: XRootD MCP Server Integration Tests\n`;
-  summary += `- **Server**: ${process.env.XROOTD_SERVER || 'root://dtn-eic.jlab.org'}\n`;
-  summary += `- **Base Directory**: ${process.env.XROOTD_BASE_DIR || '/volatile/eic/EPIC'}\n`;
+  summary += `- **Server**: ${process.env.XROOTD_SERVER || 'root://dtn2304.jlab.org:8443'}\n`;
+  summary += `- **Base Directory**: ${process.env.XROOTD_BASE_DIR || '/jlab-osdf-ro/eic/EPIC/volatile'}\n`;
   summary += `- **Node.js Version**: ${process.version}\n`;
   summary += `- **Timestamp**: ${new Date().toISOString()}\n`;
   

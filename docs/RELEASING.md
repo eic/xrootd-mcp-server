@@ -118,8 +118,8 @@ docker run --rm --entrypoint xrdfs ghcr.io/eic/xrootd-mcp-server:1.0.0 --version
 
 # Test functionality
 docker run -i --rm \
-  -e XROOTD_SERVER="root://dtn-eic.jlab.org" \
-  -e XROOTD_BASE_DIR="/volatile/eic/EPIC" \
+  -e XROOTD_SERVER="root://dtn2304.jlab.org:8443" \
+  -e XROOTD_BASE_DIR="/jlab-osdf-ro/eic/EPIC/volatile" \
   ghcr.io/eic/xrootd-mcp-server:1.0.0
 ```
 

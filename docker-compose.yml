@@ -7,10 +7,10 @@ services:
     stdin_open: true
     environment:
       # Required: XRootD server URL
-      XROOTD_SERVER: ${XROOTD_SERVER:-root://dtn-eic.jlab.org}
+      XROOTD_SERVER: ${XROOTD_SERVER:-root://dtn2304.jlab.org:8443}
       
       # Optional: Base directory for access control
-      XROOTD_BASE_DIR: ${XROOTD_BASE_DIR:-/volatile/eic/EPIC}
+      XROOTD_BASE_DIR: ${XROOTD_BASE_DIR:-/jlab-osdf-ro/eic/EPIC/volatile}
       
       # Optional: Caching configuration
       XROOTD_CACHE_ENABLED: ${XROOTD_CACHE_ENABLED:-true}

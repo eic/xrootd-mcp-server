@@ -61,16 +61,16 @@ jobs:
 
       - name: Run integration tests with coverage
         env:
-          XROOTD_SERVER: root://dtn-eic.jlab.org
-          XROOTD_BASE_DIR: /volatile/eic/EPIC
+          XROOTD_SERVER: root://dtn2304.jlab.org:8443
+          XROOTD_BASE_DIR: /jlab-osdf-ro/eic/EPIC/volatile
         run: npm run test:coverage
         timeout-minutes: 10
 
       - name: Generate test summary
         if: always()
         env:
-          XROOTD_SERVER: root://dtn-eic.jlab.org
-          XROOTD_BASE_DIR: /volatile/eic/EPIC
+          XROOTD_SERVER: root://dtn2304.jlab.org:8443
+          XROOTD_BASE_DIR: /jlab-osdf-ro/eic/EPIC/volatile
         run: node scripts/test-summary.js
 
       - name: Upload coverage reports

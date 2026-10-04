@@ -35,7 +35,7 @@ The test suite covers all major components of the XRootD MCP Server:
 
 #### Integration Tests (`test/xrootd.test.ts`)
 
-These tests run against a **real XRootD server** (`root://dtn-eic.jlab.org`) to verify:
+These tests run against a **real XRootD server** (`root://dtn2304.jlab.org:8443`) to verify:
 - End-to-end functionality
 - Real-world server interactions
 - Error handling with actual errors
