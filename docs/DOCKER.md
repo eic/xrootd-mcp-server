@@ -8,8 +8,8 @@ This guide covers running the XRootD MCP Server using Docker.
 
 ```bash
 docker run -i --rm \
-  -e XROOTD_SERVER="root://dtn-eic.jlab.org" \
-  -e XROOTD_BASE_DIR="/volatile/eic/EPIC" \
+  -e XROOTD_SERVER="root://dtn2304.jlab.org:8443" \
+  -e XROOTD_BASE_DIR="/jlab-osdf-ro/eic/EPIC/volatile" \
   ghcr.io/eic/xrootd-mcp-server:latest
 ```
 
@@ -26,8 +26,8 @@ Update your Claude Desktop configuration (`~/Library/Application Support/Claude/
         "run",
         "-i",
         "--rm",
-        "-e", "XROOTD_SERVER=root://dtn-eic.jlab.org",
-        "-e", "XROOTD_BASE_DIR=/volatile/eic/EPIC",
+        "-e", "XROOTD_SERVER=root://dtn2304.jlab.org:8443",
+        "-e", "XROOTD_BASE_DIR=/jlab-osdf-ro/eic/EPIC/volatile",
         "-e", "XROOTD_CACHE_TTL=60",
         "ghcr.io/eic/xrootd-mcp-server:latest"
       ]
@@ -40,7 +40,7 @@ Update your Claude Desktop configuration (`~/Library/Application Support/Claude/
 
 ### Required
 
-- `XROOTD_SERVER` - XRootD server URL (e.g., `root://dtn-eic.jlab.org`)
+- `XROOTD_SERVER` - XRootD server URL (e.g., `root://dtn2304.jlab.org:8443`)
 
 ### Optional
 
@@ -54,8 +54,8 @@ Update your Claude Desktop configuration (`~/Library/Application Support/Claude/
 Create a `.env` file:
 
 ```bash
-XROOTD_SERVER=root://dtn-eic.jlab.org
-XROOTD_BASE_DIR=/volatile/eic/EPIC
+XROOTD_SERVER=root://dtn2304.jlab.org:8443
+XROOTD_BASE_DIR=/jlab-osdf-ro/eic/EPIC/volatile
 XROOTD_CACHE_TTL=60
 ```
 
@@ -109,7 +109,7 @@ If you need XRootD authentication (grid certificates):
 
 ```bash
 docker run -i --rm \
-  -e XROOTD_SERVER="root://dtn-eic.jlab.org" \
+  -e XROOTD_SERVER="root://dtn2304.jlab.org:8443" \
   -v ~/.globus:/home/xrootd/.globus:ro \
   -v ~/.x509:/home/xrootd/.x509:ro \
   ghcr.io/eic/xrootd-mcp-server:latest
@@ -202,17 +202,17 @@ docker run -it --rm --entrypoint /bin/sh \
 
 ```bash
 docker run -it --rm \
-  -e XROOTD_SERVER="root://dtn-eic.jlab.org" \
+  -e XROOTD_SERVER="root://dtn2304.jlab.org:8443" \
   --entrypoint xrdfs \
   ghcr.io/eic/xrootd-mcp-server:latest \
-  root://dtn-eic.jlab.org ls /volatile/eic/EPIC
+  root://dtn2304.jlab.org:8443 ls /jlab-osdf-ro/eic/EPIC/volatile
 ```
 
 ### Override Command
 
 ```bash
 docker run -i --rm \
-  -e XROOTD_SERVER="root://dtn-eic.jlab.org" \
+  -e XROOTD_SERVER="root://dtn2304.jlab.org:8443" \
   ghcr.io/eic/xrootd-mcp-server:latest \
   node --version
 ```
@@ -242,9 +242,9 @@ spec:
         stdin: true
         env:
         - name: XROOTD_SERVER
-          value: "root://dtn-eic.jlab.org"
+          value: "root://dtn2304.jlab.org:8443"
         - name: XROOTD_BASE_DIR
-          value: "/volatile/eic/EPIC"
+          value: "/jlab-osdf-ro/eic/EPIC/volatile"
         - name: XROOTD_CACHE_TTL
           value: "60"
         resources:
@@ -314,7 +314,7 @@ Check environment variables:
 
 ```bash
 docker run -i --rm \
-  -e XROOTD_SERVER="root://dtn-eic.jlab.org" \
+  -e XROOTD_SERVER="root://dtn2304.jlab.org:8443" \
   -e XROOTD_CACHE_ENABLED=true \
   --entrypoint env \
   ghcr.io/eic/xrootd-mcp-server:latest

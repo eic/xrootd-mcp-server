@@ -82,10 +82,10 @@ You can verify cache behavior by checking server logs:
 
 ```bash
 # First request - cache miss (slow)
-time xrdfs root://dtn-eic.jlab.org ls /volatile/eic/EPIC/RECO/25.10.2
+time xrdfs root://dtn2304.jlab.org:8443 ls /jlab-osdf-ro/eic/EPIC/volatile/RECO/25.10.2
 
 # Immediate second request - cache hit (fast)
-time xrdfs root://dtn-eic.jlab.org ls /volatile/eic/EPIC/RECO/25.10.2
+time xrdfs root://dtn2304.jlab.org:8443 ls /jlab-osdf-ro/eic/EPIC/volatile/RECO/25.10.2
 
 # After 60 minutes - cache expired (slow again)
 ```

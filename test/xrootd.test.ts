@@ -4,8 +4,8 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import type { Tool, CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
-const TEST_SERVER = process.env.XROOTD_SERVER || 'root://dtn-eic.jlab.org';
-const TEST_BASE_DIR = process.env.XROOTD_BASE_DIR || '/volatile/eic/EPIC';
+const TEST_SERVER = process.env.XROOTD_SERVER || 'root://dtn2304.jlab.org:8443';
+const TEST_BASE_DIR = process.env.XROOTD_BASE_DIR || '/jlab-osdf-ro/eic/EPIC/volatile';
 
 describe('XRootD MCP Server Integration Tests', () => {
   let client: Client;
@@ -478,7 +478,7 @@ describe('Large Directory Event Counting', () => {
   let largeTransport: StdioClientTransport;
 
   const LARGE_DIR = 'RECO/26.03.0/epic_craterlake/DIS/NC/10x100/minQ2=1';
-  // This is an EIC production directory on dtn-eic.jlab.org that contains hundreds
+  // This is an EIC production directory on dtn2304.jlab.org:8443 that contains hundreds
   // of ROOT files. Tests gracefully skip when the server or path is not accessible.
 
   before(async () => {

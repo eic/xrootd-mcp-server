@@ -47,7 +47,7 @@ npm run build
 
 Test your XRootD connection manually first:
 ```bash
-export XROOTD_SERVER="root://dtn-eic.jlab.org"
+export XROOTD_SERVER="root://dtn2304.jlab.org:8443"
 xrdfs $XROOTD_SERVER ls /
 ```
 
@@ -55,7 +55,7 @@ xrdfs $XROOTD_SERVER ls /
 
 ### Standalone Mode
 ```bash
-XROOTD_SERVER="root://dtn-eic.jlab.org" XROOTD_BASE_DIR="/volatile/eic/EPIC" node build/src/index.js
+XROOTD_SERVER="root://dtn2304.jlab.org:8443" XROOTD_BASE_DIR="/jlab-osdf-ro/eic/EPIC/volatile" node build/src/index.js
 ```
 
 ### Streamable HTTP Mode
@@ -63,7 +63,7 @@ XROOTD_SERVER="root://dtn-eic.jlab.org" XROOTD_BASE_DIR="/volatile/eic/EPIC" nod
 For clients that connect over the network instead of spawning the server:
 
 ```bash
-MCP_TRANSPORT=http XROOTD_SERVER="root://dtn-eic.jlab.org" node build/src/index.js
+MCP_TRANSPORT=http XROOTD_SERVER="root://dtn2304.jlab.org:8443" node build/src/index.js
 # MCP endpoint: http://127.0.0.1:9102/mcp  (MCP_HOST / MCP_PORT to change)
 ```
 
@@ -84,8 +84,8 @@ MCP_TRANSPORT=http XROOTD_SERVER="root://dtn-eic.jlab.org" node build/src/index.
         "/absolute/path/to/xrootd-mcp-server/build/index.js"
       ],
       "env": {
-        "XROOTD_SERVER": "root://dtn-eic.jlab.org",
-        "XROOTD_BASE_DIR": "/volatile/eic/EPIC"
+        "XROOTD_SERVER": "root://dtn2304.jlab.org:8443",
+        "XROOTD_BASE_DIR": "/jlab-osdf-ro/eic/EPIC/volatile"
       }
     }
   }
@@ -102,7 +102,7 @@ MCP_TRANSPORT=http XROOTD_SERVER="root://dtn-eic.jlab.org" node build/src/index.
 ## Example XRootD Servers
 
 ### Default Server
-- **JLab EIC**: `root://dtn-eic.jlab.org`
+- **JLab EIC**: `root://dtn2304.jlab.org:8443`
 
 ### Other Servers
 You can also use other XRootD servers by changing the `XROOTD_SERVER` environment variable:
@@ -116,7 +116,7 @@ root://xrd.yourdomain.edu:1094  # Custom port
 
 The `XROOTD_BASE_DIR` environment variable provides two benefits:
 
-1. **Simplified paths**: Use relative paths like `EVGEN/file.root` instead of `/volatile/eic/EPIC/EVGEN/file.root`
+1. **Simplified paths**: Use relative paths like `EVGEN/file.root` instead of `/jlab-osdf-ro/eic/EPIC/volatile/EVGEN/file.root`
 2. **Access control**: Prevents access outside the base directory for security
 
 Example:
@@ -125,7 +125,7 @@ Example:
 XROOTD_BASE_DIR="/"  # Can access any path
 
 # With base directory
-XROOTD_BASE_DIR="/volatile/eic/EPIC"  # Can only access paths under /volatile/eic/EPIC
+XROOTD_BASE_DIR="/jlab-osdf-ro/eic/EPIC/volatile"  # Can only access paths under /jlab-osdf-ro/eic/EPIC/volatile
 ```
 
 ## Troubleshooting

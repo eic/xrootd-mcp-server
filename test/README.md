@@ -74,8 +74,8 @@ XROOTD_SERVER=root://your-server.edu XROOTD_BASE_DIR=/your/path npm test
 
 Tests use environment variables:
 
-- `XROOTD_SERVER`: XRootD server URL (default: `root://dtn-eic.jlab.org`)
-- `XROOTD_BASE_DIR`: Base directory path (default: `/volatile/eic/EPIC`)
+- `XROOTD_SERVER`: XRootD server URL (default: `root://dtn2304.jlab.org:8443`)
+- `XROOTD_BASE_DIR`: Base directory path (default: `/jlab-osdf-ro/eic/EPIC/volatile`)
 
 ## CI/CD Integration
 
@@ -88,7 +88,7 @@ The GitHub Actions workflow:
 1. Installs XRootD client
 2. Installs Node.js dependencies
 3. Builds the TypeScript code
-4. Runs all tests against `dtn-eic.jlab.org`
+4. Runs all tests against `dtn2304.jlab.org:8443`
 
 ## Writing New Tests
 
@@ -145,7 +145,7 @@ If tests fail with connection errors:
 
 1. Check server availability:
    ```bash
-   xrdfs root://dtn-eic.jlab.org ls /volatile/eic/EPIC
+   xrdfs root://dtn2304.jlab.org:8443 ls /jlab-osdf-ro/eic/EPIC/volatile
    ```
 
 2. Verify network connectivity

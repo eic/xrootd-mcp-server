@@ -152,7 +152,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
         "/absolute/path/to/xrootd-mcp-server/build/index.js"
       ],
       "env": {
-        "XROOTD_SERVER": "root://dtn-eic.jlab.org"
+        "XROOTD_SERVER": "root://dtn2304.jlab.org:8443"
       }
     }
   }

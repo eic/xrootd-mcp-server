@@ -22,7 +22,7 @@ npm run build
 
 4. Set up environment:
 ```bash
-export XROOTD_SERVER="root://dtn-eic.jlab.org"
+export XROOTD_SERVER="root://dtn2304.jlab.org:8443"
 ```
 
 ## Development Workflow
