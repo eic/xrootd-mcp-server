@@ -150,12 +150,17 @@ Add to your MCP client configuration:
 - `list_datasets`: List datasets within a specific campaign
 - `summarize_recent_changes`: Summarize files added in a time period with detailed statistics
 
-### Timeouts
+### Timeouts and truncation
 
 Every tool takes `timeout` (seconds; default 120, or `XROOTD_TOOL_TIMEOUT`).
 On expiry the tool returns `Error: <tool> did not finish within N s. ...` with
 what to try (deeper path, `recursive: false`, smaller range, or retry once
-later: the xrootd command keeps running until it finishes).
+later: the xrootd command keeps running until it finishes). Any list in a
+result stops at 1000 entries and a sibling `<key>Truncated` field reads
+`truncated: N of M entries; <how to narrow the call>`; `read_file` returns at
+most 1 MB per call and appends `[truncated: N of M bytes; ...]`. Expected
+failures (unknown path, unknown server, HTTP access needing `allow_copy`)
+come back as `Error: ...` text with `isError` set, not as protocol errors.
 
 ## Development
 

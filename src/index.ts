@@ -15,6 +15,9 @@ import { createRequire } from 'node:module';
 import {
   XRootDClient,
   DEFAULT_TOOL_TIMEOUT_SECONDS,
+  MAX_LIST_ENTRIES,
+  MAX_READ_BYTES,
+  truncateArrays,
   withTimeout,
 } from './xrootd.js';
 import { ROOTAnalyzer } from './root-analysis.js';
@@ -239,7 +242,7 @@ const tools: Tool[] = [
         },
         limit: {
           type: 'number',
-          description: 'Maximum number of entries per page (default: 1000). Use with offset for pagination through large directories.',
+          description: `Maximum number of entries per page (default and maximum: ${MAX_LIST_ENTRIES}). Use with offset for pagination through large directories.`,
         },
         offset: {
           type: 'number',
@@ -283,7 +286,7 @@ const tools: Tool[] = [
         },
         start: {
           type: 'number',
-          description: 'Optional: Start byte position for partial read',
+          description: `Optional: Start byte position for partial read (at most ${MAX_READ_BYTES} bytes are returned per call)`,
         },
         end: {
           type: 'number',
@@ -660,10 +663,69 @@ for (const tool of tools) {
   }
 }
 
+// How to shrink each tool's result when an array in it was cut.
+const NARROWING_HINTS: Record<string, string> = {
+  list_directory: 'use limit and offset to page',
+  search_files: 'use a deeper basePath, a stricter pattern or recursive: false',
+  get_statistics: 'use a deeper path or recursive: false',
+  list_directory_filtered: 'add a namePattern, extension or size filter',
+  find_recent_files: 'use fewer hours, a deeper path or recursive: false',
+  list_campaigns: 'point recoPath at one campaign series',
+  list_datasets: 'use list_directory with limit and offset on the campaign path',
+  summarize_recent_changes: 'use fewer hours or a deeper path',
+  analyze_root_file: 'use get_event_statistics for the events tree only',
+  extract_podio_metadata: 'no narrower call exists; the branch list is cut',
+  get_event_statistics: 'use get_branch_histogram for one collection',
+  get_dataset_event_statistics: 'point path at one sub-directory',
+  get_branch_histogram: 'use fewer bins',
+};
+
+function jsonText(toolName: string, value: unknown): string {
+  const hint = NARROWING_HINTS[toolName] ?? 'narrow the call';
+  return JSON.stringify(truncateArrays(value, MAX_LIST_ENTRIES, hint), null, 2);
+}
+
+// Add what to do next to the xrootd errors an agent meets most often.
+function explainError(message: string): string {
+  if (message.includes('[3011]')) {
+    return `${message} The path does not exist on the server; list_directory on its parent shows what does.`;
+  }
+  if (message.includes('ENOENT') && message.includes('xrd')) {
+    return `${message} The xrootd client (xrdfs/xrdcp) is not installed on the MCP server host.`;
+  }
+  return message;
+}
+
+const SERVER_INSTRUCTIONS = [
+  'Read-only access to XRootD servers for EIC data. Results are JSON text; a failure is a text',
+  "starting with 'Error:' that says what to try next, with isError set.",
+  'Tools:',
+  '- list_servers: the configured servers and their cache statistics.',
+  '- list_directory: entries of one directory, paged with limit and offset.',
+  '- get_file_info: size, modification time and type of one path.',
+  `- read_file: file content as text, optionally a byte range; at most ${MAX_READ_BYTES} bytes per call.`,
+  '- check_file_exists: whether a path exists.',
+  '- get_directory_size: total size of a directory tree.',
+  '- search_files: files matching a glob or regex under a path.',
+  '- get_statistics: counts, sizes and extremes of the files under a path.',
+  '- list_directory_filtered: one directory filtered by extension, size, date or name pattern.',
+  '- find_recent_files: files modified within the last hours.',
+  '- list_campaigns / list_datasets: production campaigns and the datasets of one campaign.',
+  '- summarize_recent_changes: files added in the last hours, grouped by extension and directory.',
+  '- analyze_root_file / extract_podio_metadata / get_event_statistics: structure, podio metadata and per-collection sizes of one ROOT file.',
+  '- get_dataset_event_statistics: event statistics summed over the ROOT files of a directory.',
+  '- get_branch_histogram: histogram of one TTree branch.',
+  `Timeouts: every tool takes 'timeout' in seconds (default ${DEFAULT_TOOL_TIMEOUT_SECONDS}); on expiry it`,
+  'returns an error naming the tool and the limit; the xrootd command keeps running, so narrow the',
+  'call or retry once later.',
+  `Truncation: any list in a result stops at ${MAX_LIST_ENTRIES} entries and a sibling '<key>Truncated' field`,
+  "reads 'truncated: N of M entries; <how to narrow the call>'; read_file appends a '[truncated: N of M bytes ...]' line.",
+].join('\n');
+
 function createServer(): Server {
   const server = new Server(
     { name: pkg.name, version: pkg.version },
-    { capabilities: { tools: {} } }
+    { capabilities: { tools: {} }, instructions: SERVER_INSTRUCTIONS }
   );
 
   server.setRequestHandler(ListToolsRequestSchema, async () => {
@@ -684,19 +746,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           cacheStats: client.getCacheStats(),
         }));
         return {
-          content: [{ type: 'text', text: JSON.stringify({ servers: serverList }, null, 2) }],
+          content: [{ type: 'text', text: jsonText(name, { servers: serverList }) }],
         };
       }
 
       case 'list_directory': {
         const { client } = getClient(args.server ? String(args.server) : undefined);
         const path = String(args.path);
-        const limit = args.limit !== undefined ? Number(args.limit) : 1000;
+        const requestedLimit = args.limit !== undefined ? Number(args.limit) : MAX_LIST_ENTRIES;
         const offset = args.offset !== undefined ? Number(args.offset) : 0;
 
-        if (!Number.isFinite(limit) || !Number.isInteger(limit) || limit < 1) {
+        if (!Number.isFinite(requestedLimit) || !Number.isInteger(requestedLimit) || requestedLimit < 1) {
           throw new Error('Invalid "limit" parameter: must be a positive integer.');
         }
+        const limit = Math.min(requestedLimit, MAX_LIST_ENTRIES);
         if (!Number.isFinite(offset) || !Number.isInteger(offset) || offset < 0) {
           throw new Error('Invalid "offset" parameter: must be a non-negative integer.');
         }
@@ -722,7 +785,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [
             {
               type: 'text',
-              text: JSON.stringify(responseBody, null, 2),
+              text: jsonText(name, responseBody),
             },
           ],
         };
@@ -737,7 +800,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [
             {
               type: 'text',
-              text: JSON.stringify(info, null, 2),
+              text: jsonText(name, info),
             },
           ],
         };
@@ -750,12 +813,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const end = args.end !== undefined ? Number(args.end) : undefined;
         
         const content = await client.readFile(path, start, end);
-        
+        let text = content.subarray(0, MAX_READ_BYTES).toString('utf-8');
+        if (content.length > MAX_READ_BYTES) {
+          text += `\n[truncated: ${MAX_READ_BYTES} of ${content.length} bytes; pass start and end for a byte range]`;
+        }
+
         return {
           content: [
             {
               type: 'text',
-              text: content.toString('utf-8'),
+              text,
             },
           ],
         };
@@ -770,7 +837,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [
             {
               type: 'text',
-              text: JSON.stringify({ path, exists }, null, 2),
+              text: jsonText(name, { path, exists }),
             },
           ],
         };
@@ -785,7 +852,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [
             {
               type: 'text',
-              text: JSON.stringify({ path, size, sizeHuman: formatBytes(size) }, null, 2),
+              text: jsonText(name, { path, size, sizeHuman: formatBytes(size) }),
             },
           ],
         };
@@ -804,7 +871,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [
             {
               type: 'text',
-              text: JSON.stringify({
+              text: jsonText(name, {
                 pattern,
                 matchCount: results.length,
                 results: results.map(r => ({
@@ -813,7 +880,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                   sizeHuman: formatBytes(r.size),
                   modificationTime: r.modificationTime,
                 })),
-              }, null, 2),
+              }),
             },
           ],
         };
@@ -830,7 +897,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [
             {
               type: 'text',
-              text: JSON.stringify({
+              text: jsonText(name, {
                 ...stats,
                 totalSizeHuman: formatBytes(stats.totalSize),
                 sizeByExtension: Object.fromEntries(
@@ -839,7 +906,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                     { ...data, sizeHuman: formatBytes(data.size) },
                   ])
                 ),
-              }, null, 2),
+              }),
             },
           ],
         };
@@ -863,12 +930,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [
             {
               type: 'text',
-              text: JSON.stringify({
+              text: jsonText(name, {
                 path,
                 filter,
                 matchCount: entries.length,
                 entries,
-              }, null, 2),
+              }),
             },
           ],
         };
@@ -886,7 +953,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [
             {
               type: 'text',
-              text: JSON.stringify({
+              text: jsonText(name, {
                 path,
                 hours,
                 fileCount: results.length,
@@ -896,7 +963,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                   sizeHuman: formatBytes(r.size),
                   modificationTime: r.modificationTime,
                 })),
-              }, null, 2),
+              }),
             },
           ],
         };
@@ -911,10 +978,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [
             {
               type: 'text',
-              text: JSON.stringify({
+              text: jsonText(name, {
                 campaignCount: campaigns.length,
                 campaigns,
-              }, null, 2),
+              }),
             },
           ],
         };
@@ -931,11 +998,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [
             {
               type: 'text',
-              text: JSON.stringify({
+              text: jsonText(name, {
                 campaign,
                 datasetCount: datasets.length,
                 datasets,
-              }, null, 2),
+              }),
             },
           ],
         };
@@ -952,7 +1019,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [
             {
               type: 'text',
-              text: JSON.stringify({
+              text: jsonText(name, {
                 path,
                 period: `${hours} hours`,
                 totalFilesAdded: summary.totalFilesAdded,
@@ -974,7 +1041,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                   size: formatBytes(f.size),
                   modificationTime: f.modificationTime,
                 })),
-              }, null, 2),
+              }),
             },
           ],
         };
@@ -990,7 +1057,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [
             {
               type: 'text',
-              text: JSON.stringify({
+              text: jsonText(name, {
                 ...structure,
                 sizeHuman: formatBytes(structure.size),
                 trees: structure.trees.map(tree => ({
@@ -1004,7 +1071,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                     zipBytesHuman: formatBytes(branch.zipBytes),
                   })),
                 })),
-              }, null, 2),
+              }),
             },
           ],
         };
@@ -1020,7 +1087,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [
             {
               type: 'text',
-              text: JSON.stringify(metadata, null, 2),
+              text: jsonText(name, metadata),
             },
           ],
         };
@@ -1036,7 +1103,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [
             {
               type: 'text',
-              text: JSON.stringify({
+              text: jsonText(name, {
                 totalEvents: stats.totalEvents,
                 collectionCount: Object.keys(stats.collectionStats).length,
                 collections: Object.entries(stats.collectionStats).map(([collName, coll]) => ({
@@ -1050,7 +1117,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                   averageSizePerEvent: coll.averageSizePerEvent,
                   averageSizePerEventHuman: formatBytes(coll.averageSizePerEvent),
                 })).sort((a, b) => b.totalSize - a.totalSize),
-              }, null, 2),
+              }),
             },
           ],
         };
@@ -1066,7 +1133,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [
             {
               type: 'text',
-              text: JSON.stringify({
+              text: jsonText(name, {
                 datasetPath: stats.datasetPath,
                 fileCount: stats.files.length,
                 totalEvents: stats.totalEvents,
@@ -1099,7 +1166,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                   compressionFactor: f.zipBytes > 0 ? (f.size / f.zipBytes).toFixed(2) : '1.00',
                   collectionCount: Object.keys(f.collections).length,
                 })),
-              }, null, 2),
+              }),
             },
           ],
         };
@@ -1136,7 +1203,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [
             {
               type: 'text',
-              text: JSON.stringify(hist, null, 2),
+              text: jsonText(name, hist),
             },
           ],
         };
@@ -1157,7 +1224,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       content: [
         {
           type: 'text',
-          text: `Error: ${error.message}`,
+          text: `Error: ${explainError(error.message)}`,
         },
       ],
       isError: true,
