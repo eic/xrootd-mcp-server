@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { timeoutMessage, withTimeout } from '../src/xrootd.js';
+import { MAX_LIST_ENTRIES, timeoutMessage, truncateArrays, withTimeout } from '../src/xrootd.js';
 
 describe('withTimeout', () => {
   it('passes a result through when the work finishes in time', async () => {
@@ -18,5 +18,29 @@ describe('withTimeout', () => {
         return true;
       }
     );
+  });
+});
+
+describe('truncateArrays', () => {
+  it('leaves short arrays and scalars untouched', () => {
+    const value = { count: 2, entries: ['a', 'b'], when: new Date(0) };
+    assert.deepStrictEqual(truncateArrays(value, MAX_LIST_ENTRIES, 'narrow'), value);
+  });
+
+  it('cuts long arrays and adds a sibling note', () => {
+    const value = { nested: { items: [1, 2, 3, 4, 5] } };
+    const result = truncateArrays(value, 2, 'use limit and offset to page') as any;
+    assert.deepStrictEqual(result.nested.items, [1, 2]);
+    assert.strictEqual(
+      result.nested.itemsTruncated,
+      'truncated: 2 of 5 entries; use limit and offset to page'
+    );
+  });
+
+  it('cuts arrays inside array elements', () => {
+    const value = { trees: [{ branches: ['a', 'b', 'c'] }] };
+    const result = truncateArrays(value, 2, 'narrow') as any;
+    assert.deepStrictEqual(result.trees[0].branches, ['a', 'b']);
+    assert.strictEqual(result.trees[0].branchesTruncated, 'truncated: 2 of 3 entries; narrow');
   });
 });
