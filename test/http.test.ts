@@ -77,6 +77,25 @@ describe('Streamable HTTP transport', () => {
 
       assert.ok(tools.tools.length > 0);
       assert.ok(toolNames.includes('list_directory'));
+      for (const tool of tools.tools as Tool[]) {
+        if (tool.name !== 'list_servers') {
+          assert.ok(tool.inputSchema.properties?.timeout, `${tool.name} has no timeout parameter`);
+        }
+      }
+    } finally {
+      await client.close();
+    }
+  });
+
+  it('should reject an invalid timeout as an error result', async () => {
+    const client = await connectClient('http-test-client-timeout');
+    try {
+      const result: any = await client.callTool({
+        name: 'list_directory',
+        arguments: { path: '/', timeout: 3000000 },
+      });
+      assert.strictEqual(result.isError, true);
+      assert.ok(result.content[0].text.includes('Invalid "timeout" parameter'));
     } finally {
       await client.close();
     }
