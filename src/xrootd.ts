@@ -48,6 +48,27 @@ export function globToRegex(glob: string): RegExp {
   return new RegExp(`^${escapedGlob}$`);
 }
 
+// Seconds a tool call may run before it returns a timeout message.
+export const DEFAULT_TOOL_TIMEOUT_SECONDS = Number(process.env.XROOTD_TOOL_TIMEOUT) || 120;
+
+export function timeoutMessage(toolName: string, timeoutSeconds: number): string {
+  return (
+    `${toolName} did not finish within ${timeoutSeconds} s. Try a deeper path, ` +
+    `recursive: false, a smaller range or a larger timeout. The underlying ` +
+    `xrootd command keeps running until it finishes, so retry once later.`
+  );
+}
+
+// Resolve with the tool's result, or reject with timeoutMessage() once
+// timeoutSeconds have passed.  The work itself is not cancelled.
+export function withTimeout<T>(work: Promise<T>, timeoutSeconds: number, toolName: string): Promise<T> {
+  let timer: NodeJS.Timeout;
+  const expiry = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(timeoutMessage(toolName, timeoutSeconds))), timeoutSeconds * 1000);
+  });
+  return Promise.race([work, expiry]).finally(() => clearTimeout(timer));
+}
+
 export interface FileInfo {
   path: string;
   size: number;
