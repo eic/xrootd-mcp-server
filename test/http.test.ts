@@ -92,7 +92,7 @@ describe('Streamable HTTP transport', () => {
     try {
       const result: any = await client.callTool({
         name: 'list_directory',
-        arguments: { path: '/', timeout: -1 },
+        arguments: { path: '/', timeout: 3000000 },
       });
       assert.strictEqual(result.isError, true);
       assert.ok(result.content[0].text.includes('Invalid "timeout" parameter'));

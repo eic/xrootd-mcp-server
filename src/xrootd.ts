@@ -50,6 +50,8 @@ export function globToRegex(glob: string): RegExp {
 
 // Seconds a tool call may run before it returns a timeout message.
 export const DEFAULT_TOOL_TIMEOUT_SECONDS = Number(process.env.XROOTD_TOOL_TIMEOUT) || 120;
+// Largest delay a Node timer accepts (2^31 - 1 ms); above it setTimeout fires at once.
+export const MAX_TOOL_TIMEOUT_SECONDS = Math.floor(2147483647 / 1000);
 
 export function timeoutMessage(toolName: string, timeoutSeconds: number): string {
   return (

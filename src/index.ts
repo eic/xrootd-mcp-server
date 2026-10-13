@@ -15,6 +15,7 @@ import { createRequire } from 'node:module';
 import {
   XRootDClient,
   DEFAULT_TOOL_TIMEOUT_SECONDS,
+  MAX_TOOL_TIMEOUT_SECONDS,
   withTimeout,
 } from './xrootd.js';
 import { ROOTAnalyzer } from './root-analysis.js';
@@ -1148,8 +1149,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   };
 
   try {
-    if (!Number.isFinite(timeoutSeconds) || timeoutSeconds <= 0) {
-      throw new Error('Invalid "timeout" parameter: must be a positive number of seconds.');
+    if (!Number.isFinite(timeoutSeconds) || timeoutSeconds <= 0 || timeoutSeconds > MAX_TOOL_TIMEOUT_SECONDS) {
+      throw new Error(`Invalid "timeout" parameter: must be a number of seconds between 0 and ${MAX_TOOL_TIMEOUT_SECONDS}.`);
     }
     return await withTimeout(runTool(), timeoutSeconds, name);
   } catch (error: any) {

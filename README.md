@@ -152,7 +152,7 @@ Add to your MCP client configuration:
 
 ### Timeouts
 
-Every tool takes `timeout` (seconds; default 120, or `XROOTD_TOOL_TIMEOUT`).
+Every tool except `list_servers` takes `timeout` (seconds; default 120, or `XROOTD_TOOL_TIMEOUT`).
 On expiry the tool returns `Error: <tool> did not finish within N s. ...` with
 what to try (deeper path, `recursive: false`, smaller range, or retry once
 later: the xrootd command keeps running until it finishes).
