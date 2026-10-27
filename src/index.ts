@@ -7,11 +7,17 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { createServer as createHttpServer, IncomingMessage, ServerResponse } from 'node:http';
 import {
   CallToolRequestSchema,
+  CallToolResult,
   ListToolsRequestSchema,
   Tool,
 } from '@modelcontextprotocol/sdk/types.js';
 import { createRequire } from 'node:module';
-import { XRootDClient } from './xrootd.js';
+import {
+  XRootDClient,
+  DEFAULT_TOOL_TIMEOUT_SECONDS,
+  MAX_TOOL_TIMEOUT_SECONDS,
+  withTimeout,
+} from './xrootd.js';
 import { ROOTAnalyzer } from './root-analysis.js';
 
 interface ServerConfig {
@@ -645,6 +651,16 @@ const tools: Tool[] = [
   },
 ];
 
+// Every tool that contacts the server takes a wall-clock limit.
+for (const tool of tools) {
+  if (tool.name !== 'list_servers') {
+    tool.inputSchema.properties!.timeout = {
+      type: 'number',
+      description: `Seconds before the call returns a timeout message (default: ${DEFAULT_TOOL_TIMEOUT_SECONDS})`,
+    };
+  }
+}
+
 function createServer(): Server {
   const server = new Server(
     { name: pkg.name, version: pkg.version },
@@ -659,8 +675,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name } = request.params;
   // list_servers takes no parameters so clients may omit arguments; default to {}
   const args = request.params.arguments ?? {};
+  const timeoutSeconds = args.timeout !== undefined ? Number(args.timeout) : DEFAULT_TOOL_TIMEOUT_SECONDS;
 
-  try {
+  const runTool = async (): Promise<CallToolResult> => {
     switch (name) {
       case 'list_servers': {
         const serverList = Array.from(servers.entries()).map(([srvName, { client }]) => ({
@@ -1129,6 +1146,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
+  };
+
+  try {
+    if (!Number.isFinite(timeoutSeconds) || timeoutSeconds <= 0 || timeoutSeconds > MAX_TOOL_TIMEOUT_SECONDS) {
+      throw new Error(`Invalid "timeout" parameter: must be a number of seconds between 0 and ${MAX_TOOL_TIMEOUT_SECONDS}.`);
+    }
+    return await withTimeout(runTool(), timeoutSeconds, name);
   } catch (error: any) {
     return {
       content: [
