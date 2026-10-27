@@ -165,14 +165,13 @@ jobs:
           echo "Checking for Docker image with tag: $VERSION_NO_V"
 
           # When triggered via workflow_run, docker.yml has already completed so
-          # the image should be available immediately.  For push/tags and
-          # workflow_dispatch paths the build may still be in progress, so use
-          # more generous retry parameters.
+          # the image should be available immediately. For push/tags and
+          # workflow_dispatch paths the build may still be in progress.
           if [ "${{ github.event_name }}" = "workflow_run" ]; then
             MAX_ATTEMPTS=5
             SLEEP_SECS=10
           else
-            MAX_ATTEMPTS=5
+            MAX_ATTEMPTS=60
             SLEEP_SECS=10
           fi
 
