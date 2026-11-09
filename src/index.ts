@@ -1184,6 +1184,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (!Number.isFinite(bins) || bins < 1) {
           throw new Error('Invalid "bins" parameter: must be a finite integer >= 1.');
         }
+        if (bins > MAX_LIST_ENTRIES - 1) {
+          throw new Error(`Invalid "bins" parameter: at most ${MAX_LIST_ENTRIES - 1}.`);
+        }
         const hasXmin = args.xmin !== undefined;
         const hasXmax = args.xmax !== undefined;
 
