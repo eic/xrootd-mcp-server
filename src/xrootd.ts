@@ -139,7 +139,7 @@ export class XRootDClient {
     
     if (enableCache) {
       // Run cleanup every 15 minutes
-      setInterval(() => this.cache.cleanup(), 15 * 60 * 1000);
+      setInterval(() => this.cache.cleanup(), 15 * 60 * 1000).unref();
     }
   }
 
