@@ -1,4 +1,5 @@
 import { exec, execFile } from 'child_process';
+import { StringDecoder } from 'string_decoder';
 import { promisify } from 'util';
 import { DirectoryCache } from './cache.js';
 
@@ -48,6 +49,10 @@ export function globToRegex(glob: string): RegExp {
   return new RegExp(`^${escapedGlob}$`);
 }
 
+// Arrays in a tool result stop here; a "truncated: N of M" note replaces the rest.
+export const MAX_LIST_ENTRIES = 1000;
+// Bytes of file content read_file returns before cutting the rest.
+export const MAX_READ_BYTES = 1024 * 1024;
 // Seconds a tool call may run before it returns a timeout message.
 export const DEFAULT_TOOL_TIMEOUT_SECONDS = Number(process.env.XROOTD_TOOL_TIMEOUT) || 120;
 // Largest delay a Node timer accepts (2^31 - 1 ms); above it setTimeout fires at once.
@@ -69,6 +74,30 @@ export function withTimeout<T>(work: Promise<T>, timeoutSeconds: number, toolNam
     timer = setTimeout(() => reject(new Error(timeoutMessage(toolName, timeoutSeconds))), timeoutSeconds * 1000);
   });
   return Promise.race([work, expiry]).finally(() => clearTimeout(timer));
+}
+
+/** The first `limit` bytes of `buffer` as UTF-8, without a character cut in half. */
+export function utf8Prefix(buffer: Buffer, limit: number): string {
+  return new StringDecoder('utf8').write(buffer.subarray(0, limit));
+}
+
+// Copy a tool result, cutting every array longer than limit and adding a
+// sibling "<key>Truncated" note of the form "truncated: N of M entries; <hint>".
+export function truncateArrays(value: unknown, limit: number, hint: string): unknown {
+  if (Array.isArray(value)) {
+    return value.slice(0, limit).map(item => truncateArrays(item, limit, hint));
+  }
+  if (value === null || typeof value !== 'object' || value instanceof Date) {
+    return value;
+  }
+  const copy: Record<string, unknown> = {};
+  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+    copy[key] = truncateArrays(item, limit, hint);
+    if (Array.isArray(item) && item.length > limit) {
+      copy[`${key}Truncated`] = `truncated: ${limit} of ${item.length} entries; ${hint}`;
+    }
+  }
+  return copy;
 }
 
 export interface FileInfo {
