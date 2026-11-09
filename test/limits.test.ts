@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { MAX_LIST_ENTRIES, timeoutMessage, truncateArrays, withTimeout } from '../src/xrootd.js';
+import { MAX_LIST_ENTRIES, timeoutMessage, truncateArrays, utf8Prefix, withTimeout } from '../src/xrootd.js';
 
 describe('withTimeout', () => {
   it('passes a result through when the work finishes in time', async () => {
@@ -42,5 +42,13 @@ describe('truncateArrays', () => {
     const result = truncateArrays(value, 2, 'narrow') as any;
     assert.deepStrictEqual(result.trees[0].branches, ['a', 'b']);
     assert.strictEqual(result.trees[0].branchesTruncated, 'truncated: 2 of 3 entries; narrow');
+  });
+});
+
+describe('utf8Prefix', () => {
+  it('stops before a character the limit would split', () => {
+    const buffer = Buffer.from('ab€', 'utf8');
+    assert.strictEqual(utf8Prefix(buffer, 3), 'ab');
+    assert.strictEqual(utf8Prefix(buffer, 5), 'ab€');
   });
 });

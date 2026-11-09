@@ -1,4 +1,5 @@
 import { exec, execFile } from 'child_process';
+import { StringDecoder } from 'string_decoder';
 import { promisify } from 'util';
 import { DirectoryCache } from './cache.js';
 
@@ -73,6 +74,11 @@ export function withTimeout<T>(work: Promise<T>, timeoutSeconds: number, toolNam
     timer = setTimeout(() => reject(new Error(timeoutMessage(toolName, timeoutSeconds))), timeoutSeconds * 1000);
   });
   return Promise.race([work, expiry]).finally(() => clearTimeout(timer));
+}
+
+/** The first `limit` bytes of `buffer` as UTF-8, without a character cut in half. */
+export function utf8Prefix(buffer: Buffer, limit: number): string {
+  return new StringDecoder('utf8').write(buffer.subarray(0, limit));
 }
 
 // Copy a tool result, cutting every array longer than limit and adding a

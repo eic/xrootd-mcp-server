@@ -19,6 +19,7 @@ import {
   MAX_READ_BYTES,
   MAX_TOOL_TIMEOUT_SECONDS,
   truncateArrays,
+  utf8Prefix,
   withTimeout,
 } from './xrootd.js';
 import { ROOTAnalyzer } from './root-analysis.js';
@@ -814,9 +815,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const end = args.end !== undefined ? Number(args.end) : undefined;
         
         const content = await client.readFile(path, start, end);
-        let text = content.subarray(0, MAX_READ_BYTES).toString('utf-8');
+        let text = utf8Prefix(content, MAX_READ_BYTES);
         if (content.length > MAX_READ_BYTES) {
-          text += `\n[truncated: ${MAX_READ_BYTES} of ${content.length} bytes; pass start and end for a byte range]`;
+          text += `\n[truncated: ${Buffer.byteLength(text)} of ${content.length} bytes; pass start and end for a byte range]`;
         }
 
         return {
